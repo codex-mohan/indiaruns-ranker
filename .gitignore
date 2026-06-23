@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+artifacts/models/
+artifacts/cand_embs.npy
+artifacts/jd_emb.npy
+artifacts/tfidf.pkl
+artifacts/features.jsonl
+artifacts/ids.npy
+artifacts/jd_text.txt
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.env
+*.log

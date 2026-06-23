@@ -1,0 +1,8 @@
+numpy>=1.26
+pandas>=2.0
+scikit-learn>=1.4
+sentence-transformers>=3.0
+torch>=2.0
+gradio>=4.0
+pyarrow>=14.0
+pytest>=8.0
