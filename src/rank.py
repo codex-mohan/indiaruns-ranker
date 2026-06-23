@@ -31,6 +31,14 @@ from .reasoning import generate_reasoning
 def run(candidates_path: str, artifacts_dir: str, out_path: str):
     t0 = time.time()
 
+    # ── check artifacts exist ───────────────────────────────────────────
+    required = ["jd_emb.npy", "cand_embs.npy", "ids.npy", "tfidf.pkl"]
+    missing = [f for f in required if not os.path.exists(os.path.join(artifacts_dir, f))]
+    if missing:
+        print(f"ERROR: Missing artifacts in {artifacts_dir}: {', '.join(missing)}")
+        print("Run precompute.py first: python -m src.precompute --candidates <path> --artifacts ./artifacts")
+        return
+
     # ── load artifacts ──────────────────────────────────────────────────
     jd_emb = np.load(os.path.join(artifacts_dir, "jd_emb.npy"))
     cand_embs = np.load(os.path.join(artifacts_dir, "cand_embs.npy"))

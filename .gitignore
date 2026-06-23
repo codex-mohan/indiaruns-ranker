@@ -1,13 +1,7 @@
 __pycache__/
 *.pyc
 *.pyo
-artifacts/models/
-artifacts/cand_embs.npy
-artifacts/jd_emb.npy
-artifacts/tfidf.pkl
-artifacts/features.jsonl
-artifacts/ids.npy
-artifacts/jd_text.txt
+artifacts/
 *.egg-info/
 dist/
 build/
@@ -15,3 +9,4 @@ build/
 .pytest_cache/
 .env
 *.log
+models/
