@@ -15,6 +15,12 @@ CANDIDATES_JSONL = os.path.join(DATA_DIR, "candidates.jsonl")
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBED_DIM = 384
 
+# ── cross-encoder model (for re-ranking top N candidates) ──────────────────
+# Reads (JD, candidate) pairs jointly — understands relevance, not just similarity.
+# 80MB, runs on CPU. Downloaded during precompute, loaded locally during ranking.
+CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+RERANK_TOP_N = 1000       # how many candidates to re-rank with cross-encoder
+
 # ── scoring weights (raw component) ────────────────────────────────────────
 # Must sum to 1.0 — these are the linear weights for the soft score.
 W_SEMANTIC = 0.30

@@ -107,6 +107,20 @@ def run(candidates_path: str, artifacts_dir: str):
     with open(jd_text_path, "w", encoding="utf-8") as f:
         f.write(jd_text)
 
+    # ── download and cache cross-encoder model ───────────────────────────
+    t6 = time.time()
+    print("Loading cross-encoder model for re-ranking...")
+    from sentence_transformers import CrossEncoder
+
+    ce_model_dir = os.path.join(
+        artifacts_dir, "models",
+        C.CROSS_ENCODER_MODEL.replace("/", "_"),
+    )
+    os.makedirs(ce_model_dir, exist_ok=True)
+    ce_model = CrossEncoder(C.CROSS_ENCODER_MODEL)
+    ce_model.save(ce_model_dir)
+    print(f"  Cross-encoder saved to {ce_model_dir} in {time.time()-t6:.1f}s")
+
     total = time.time() - t0
     print(f"\nDone. Artifacts in {artifacts_dir}")
     print(f"  Total time: {total:.1f}s")

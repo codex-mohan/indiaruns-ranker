@@ -227,11 +227,23 @@ def extract(cand: dict) -> dict[str, Any]:
     last_active_date = _parse_date(last_active_str)
     last_active_days_ago = (last_active_date - _TODAY).days if last_active_date else 9999
 
-    # skill assessment average
+    # skill assessment average — only count relevant assessments
     assessments = signals.get("skill_assessment_scores", {})
+    relevant_assessments = {
+        k: v for k, v in assessments.items()
+        if k.lower() in _SKILL_MAP or any(
+            k.lower() in group
+            for cat_groups in [
+                C.RETRIEVAL_MUST, C.RETRIEVAL_NICE, C.LLM_FINETUNE, C.ML_SUPPORT
+            ]
+            for group in cat_groups
+        )
+    }
     skill_assessment_avg = (
-        sum(assessments.values()) / len(assessments) if assessments else 0.0
+        sum(relevant_assessments.values()) / len(relevant_assessments)
+        if relevant_assessments else 0.0
     )
+    skill_assessment_relevant_count = len(relevant_assessments)
 
     # ── text blob for embedding / TF-IDF ───────────────────────────────
     skill_names = " ".join(s.get("name", "") for s in skills)
@@ -241,6 +253,7 @@ def extract(cand: dict) -> dict[str, Any]:
         headline, summary, career_titles, skill_names, career_descs,
         industry, company,
     ]))
+    career_text = " ".join(c.get("description", "") for c in career)
 
     return {
         "candidate_id": cand.get("candidate_id", ""),
@@ -280,9 +293,11 @@ def extract(cand: dict) -> dict[str, Any]:
         "profile_completeness": profile_completeness,
         "github_activity_score": github_activity,
         "skill_assessment_avg": skill_assessment_avg,
+        "skill_assessment_relevant_count": skill_assessment_relevant_count,
         "search_appearance": search_appearance,
         "saved_by_recruiters": saved_by_recruiters,
         "text_blob": text_blob,
+        "career_text": career_text,
     }
 
 

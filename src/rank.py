@@ -26,6 +26,7 @@ from .scoring import (
     compute_score,
 )
 from .reasoning import generate_reasoning
+from .rerank import rerank as ce_rerank
 
 
 def run(candidates_path: str, artifacts_dir: str, out_path: str):
@@ -99,17 +100,41 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str):
 
     print(f"  Scoring done in {time.time()-t1:.1f}s")
 
-    # ── sort by score desc, then candidate_id asc ──────────────────────
+    # ── sort by bi-encoder score desc, then candidate_id asc ───────────
     results.sort(key=lambda x: (-x["score"], x["candidate_id"]))
 
-    # ── take top 100 ──────────────────────────────────────────────────
-    top100 = results[:100]
+    # ── take top N for cross-encoder re-ranking ─────────────────────────
+    top_n = [r for r in results[:C.RERANK_TOP_N] if r["gate"] == 1]
+    print(f"  Bi-encoder top {len(top_n)} (gate-passed) selected for re-ranking")
+
+    # ── cross-encoder re-ranking ───────────────────────────────────────
+    jd_text_path = os.path.join(artifacts_dir, "jd_text.txt")
+    jd_text = ""
+    if os.path.exists(jd_text_path):
+        with open(jd_text_path, "r", encoding="utf-8") as f:
+            jd_text = f.read()
+
+    ce_model_path = os.path.join(
+        artifacts_dir, "models",
+        C.CROSS_ENCODER_MODEL.replace("/", "_"),
+    )
+
+    if len(top_n) > 100 and os.path.exists(ce_model_path):
+        top_n = ce_rerank(jd_text, top_n, model_path=ce_model_path)
+    elif len(top_n) > 100:
+        print("  Cross-encoder model not found — using bi-encoder scores only")
+        for r in top_n:
+            r["final_score"] = r["score"]
+    else:
+        for r in top_n:
+            r["final_score"] = r["score"]
+
+    # ── take top 100 from re-ranked list ───────────────────────────────
+    top100 = top_n[:100]
 
     # ── re-sort top 100 by rounded score for correct tie-breaking ─────
-    # When scores round to same 4-decimal value, validator requires
-    # candidate_id ascending.  Sort by (-rounded_score, candidate_id).
     for r in top100:
-        r["rounded_score"] = round(r["score"], 4)
+        r["rounded_score"] = round(r["final_score"], 4)
     top100.sort(key=lambda x: (-x["rounded_score"], x["candidate_id"]))
 
     # ── generate reasoning ─────────────────────────────────────────────
