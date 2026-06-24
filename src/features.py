@@ -98,14 +98,15 @@ def extract(cand: dict) -> dict[str, Any]:
     # ── yoe band score (Gaussian) ──────────────────────────────────────
     yoe_band = max(0.0, 1.0 - ((yoe - C.YOE_PEAK) / C.YOE_SIGMA) ** 2)
     # soft wings: extend band beyond strict range
+    # JD says "we'll seriously consider candidates outside the band"
     if yoe < 3.0:
-        yoe_band *= 0.4
+        yoe_band *= 0.6
     elif yoe < 4.0:
-        yoe_band *= 0.7
+        yoe_band *= 0.8
     elif yoe > 12.0:
-        yoe_band *= 0.5
+        yoe_band *= 0.6
     elif yoe > 15.0:
-        yoe_band *= 0.3
+        yoe_band *= 0.4
 
     # ── consulting only check ──────────────────────────────────────────
     companies_all = [c.get("company", "") for c in career]
@@ -245,6 +246,28 @@ def extract(cand: dict) -> dict[str, Any]:
     )
     skill_assessment_relevant_count = len(relevant_assessments)
 
+    # ── education tier ────────────────────────────────────────────────
+    edu = cand.get("education", [])
+    best_tier = "none"
+    tier_order = {"tier_1": 4, "tier_2": 3, "tier_3": 2, "tier_4": 1, "unknown": 0}
+    for e in edu:
+        t = e.get("tier", "unknown")
+        if tier_order.get(t, 0) > tier_order.get(best_tier, 0):
+            best_tier = t
+
+    # ── certifications ────────────────────────────────────────────────
+    certs = cand.get("certifications", [])
+    cert_relevant_keywords = [
+        "ml", "ai", "aws", "gcp", "azure", "tensorflow", "pytorch",
+        "deep learning", "machine learning", "data science", "nlp",
+        "nlp ", "data engineer", "cloud", "google",
+    ]
+    cert_relevant_count = 0
+    for cert in certs:
+        name = cert.get("name", "").lower()
+        if any(k in name for k in cert_relevant_keywords):
+            cert_relevant_count += 1
+
     # ── text blob for embedding / TF-IDF ───────────────────────────────
     skill_names = " ".join(s.get("name", "") for s in skills)
     career_descs = " ".join(c.get("description", "") for c in career)
@@ -298,6 +321,8 @@ def extract(cand: dict) -> dict[str, Any]:
         "saved_by_recruiters": saved_by_recruiters,
         "text_blob": text_blob,
         "career_text": career_text,
+        "education_tier": best_tier,
+        "cert_relevant_count": cert_relevant_count,
     }
 
 

@@ -3,17 +3,10 @@
 Takes the top N candidates from bi-encoder scoring and re-ranks them
 using a cross-encoder that reads (JD, candidate) pairs jointly.
 
-Unlike bi-encoder cosine similarity (where JD and candidate are encoded
-separately and never "see" each other), a cross-encoder processes both
-texts together — so it can reason about *why* a candidate fits (or doesn't),
-not just how similar the vocabulary is.
-
-Example of what this catches that bi-encoders miss:
-  JD wants: "embeddings, retrieval, ranking, vector search"
-  Candidate: "Built computer vision models for image moderation,
-              fine-tuned ResNet on 200K images"
-  Bi-encoder: sees "model", "fine-tuned", "production" -> moderate similarity
-  Cross-encoder: reads both texts together -> "this is CV, not IR" -> low score
+The cross-encoder provides a corrective signal — it catches cases where
+bi-encoder cosine similarity is wrong (e.g. scoring CV work as retrieval).
+But the bi-encoder is still valuable for broad semantic matching. The final
+score blends both to prevent overcorrection in either direction.
 """
 import os
 import time
@@ -32,30 +25,18 @@ def load_cross_encoder(model_path: str | None = None):
     return CrossEncoder(C.CROSS_ENCODER_MODEL)
 
 
-def extract_career_descriptions(feat: dict) -> str:
-    """Build text for cross-encoder: career descriptions + evidenced skills.
+def build_ce_input(feat: dict) -> str:
+    """Build text for the cross-encoder.
 
-    Career descriptions show what they built (substance).
-    Skill names show tooling expertise (overlap with JD requirements).
-    Both together give the cross-encoder a complete picture.
+    Uses the full career description text (what they actually built)
+    plus the text_blob (headline, summary, skill names) for tooling context.
+    Keeps under 512 tokens for ms-marco-MiniLM compatibility.
     """
     career_text = feat.get("career_text", "")
-    se = feat.get("skills_evidenced", {})
-    evidenced_skills = [k for k, v in se.items() if v > 0]
-    labels = {
-        "retrieval_must": "retrieval/embeddings/vector-search",
-        "retrieval_nice": "search/ranking/recsys",
-        "llm_finetune": "LLM-fine-tuning",
-        "ml_support": "ML-frameworks",
-    }
-    skill_parts = []
-    for cat in ["retrieval_must", "retrieval_nice", "llm_finetune", "ml_support"]:
-        if cat in evidenced_skills:
-            skill_parts.append(labels.get(cat, cat))
-    skill_str = ", ".join(skill_parts) if skill_parts else ""
+    text_blob = feat.get("text_blob", "")
 
-    cand_text = f"Work: {career_text[:400]}. Skills: {skill_str}."
-    return cand_text[:512]
+    ce_text = career_text[:400] + " " + text_blob[:512 - len(career_text[:400]) - 1]
+    return ce_text[:500]
 
 
 def rerank(
@@ -75,7 +56,7 @@ def rerank(
 
     pairs = []
     for c in candidates:
-        cand_text = extract_career_descriptions(c["feat"])
+        cand_text = build_ce_input(c["feat"])
         pairs.append((jd_text, cand_text))
 
     ce_raw = model.predict(pairs, batch_size=32, show_progress_bar=False)
@@ -89,9 +70,12 @@ def rerank(
 
     for i, c in enumerate(candidates):
         ce = float(ce_normalized[i])
+        bi_sem = c["sem"]
+        blended_sem = 0.45 * ce + 0.55 * bi_sem
+
         final = compute_score(
             c["gate"],
-            ce,
+            blended_sem,
             c["lex"],
             c["sk_ev"],
             c["car"],

@@ -27,7 +27,6 @@ def career_fit_score(feat: dict) -> float:
     """Score based on title archetype + career signals."""
     title = feat.get("title", "other")
 
-    # Title archetype weights
     title_scores = {
         "ai_ml_engineer": 1.0,
         "data_scientist": 0.7,
@@ -45,6 +44,20 @@ def career_fit_score(feat: dict) -> float:
         base += 0.15
     if feat.get("has_scale_experience"):
         base += 0.05
+
+    # Education tier boost (tiebreaker, not primary signal)
+    tier = feat.get("education_tier", "none")
+    if tier == "tier_1":
+        base += 0.03
+    elif tier == "tier_2":
+        base += 0.02
+
+    # Certification boost
+    cert_count = feat.get("cert_relevant_count", 0)
+    if cert_count >= 3:
+        base += 0.03
+    elif cert_count >= 1:
+        base += 0.02
 
     # Penalty signals
     if feat.get("is_consulting_only"):
@@ -89,9 +102,9 @@ def behavioral_multiplier(feat: dict) -> float:
     elif days <= C.RECENCY_RECENT_DAYS:
         mult += 0.04
     elif days <= C.RECENCY_STALE_DAYS:
-        mult -= 0.02
+        mult -= 0.03
     else:
-        mult -= 0.10
+        mult -= 0.12  # ghost candidate — heavy penalty
 
     # recruiter response rate
     rrr = feat.get("recruiter_response_rate", 0.0)
