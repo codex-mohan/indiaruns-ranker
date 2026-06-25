@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>INDIA RUNS — Candidate Ranking System</title><style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; }
+.slide {
+    width: 960px; min-height: 540px; margin: 30px auto; padding: 40px 60px;
+    background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    page-break-after: always; page-break-inside: avoid;
+}
+.slide h1 { font-size: 24px; color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
+.slide h2 { font-size: 20px; color: #1e40af; margin-top: 24px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; }
+.slide h3 { font-size: 16px; color: #374151; margin-top: 16px; margin-bottom: 6px; }
+.slide p, .slide li { font-size: 14px; line-height: 1.7; color: #1f2937; }
+.slide ul, .slide ol { margin-left: 20px; margin-top: 6px; margin-bottom: 10px; }
+.slide li { margin-bottom: 4px; }
+.slide code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: Consolas, monospace; font-size: 13px; color: #dc2626; }
+.slide pre { background: #f3f4f6; padding: 14px; border-left: 3px solid #2563eb; margin: 10px 0; overflow-x: auto; font-size: 12px; }
+.slide pre code { background: none; padding: 0; color: #1f2937; }
+.slide strong { color: #1e40af; }
+.slide table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; }
+.slide th { background: #e8f0fe; padding: 8px 10px; text-align: left; border: 1px solid #cbd5e1; font-weight: bold; }
+.slide td { padding: 7px 10px; border: 1px solid #e5e7eb; }
+.slide hr { margin: 20px 0; border: none; border-top: 1px solid #e5e7eb; }
+.slide blockquote { border-left: 4px solid #2563eb; padding: 8px 16px; margin: 10px 0; background: #f0f4ff; font-style: italic; }
+@media print {
+    body { background: #fff; }
+    .slide { box-shadow: none; margin: 0; border-radius: 0; width: 100%; min-height: auto; }
+}
+</style></head>
+<body>
+<div class="slide"><h1>INDIA RUNS — Candidate Ranking System</h1>
+<h2>Team: The Monolith | Mohana Krishna</h2>
+<hr />
+<h2>Slide 1: Title</h2>
+<p><strong>INDIA RUNS — Intelligent Candidate Discovery &amp; Ranking</strong>
+Redrob AI Hiring Challenge</p>
+<p>Team: The Monolith | Mohana Krishna | codexmohan@gmail.com</p>
+<hr />
+<h2>Slide 2: The Problem</h2>
+<p>Recruiters miss good candidates because keyword filters can't see what matters.
+The challenge: rank 100,000 candidates against one hand-written JD — and get the top 100 right.</p>
+<p><strong>The JD is a trap by design.</strong> The sample submission ranks HR Managers at #1 because the dataset seeds them with "8 AI skills" like Pinecone and RAG. But the JD explicitly says: <em>"The right answer is not find candidates whose skills section contains the most AI keywords. A Marketing Manager with 8 AI skills is not a fit, no matter how perfect their skill list looks."</em></p>
+<p>The dataset also contains ~80 honeypots (impossible profiles), keyword stuffers (HR Managers listing NLP skills never used), and behavioral twins (identical profiles with opposite availability signals).</p>
+<hr />
+<h2>Slide 3: Architecture — Three Layers</h2>
+<p><strong>Layer 1 — Gate</strong> (filters noise → 35K of 100K pass)
+- Honeypot detection: impossible profiles → score = 0
+- Hard disqualifiers: consulting-only (TCS/Infosys/Wipro), research-only, title-chasers, no production code in 18+ months, closed-source careers without external validation</p>
+<p><strong>Layer 2 — Bi-encoder ranking</strong> (7-component hybrid score)
+- Semantic: <code>all-MiniLM-L6-v2</code> cosine similarity (catches "built a recsys" ≈ "retrieval")
+- Lexical: TF-IDF cosine (catches exact tech: Pinecone, Qdrant, NDCG)
+- Skill evidence: trust-weighted — 0 endorsements + 0 months = ~0 contribution
+- Career fit: title archetype + product-company boost + education tier + certifications
+- YOE band: Gaussian peaked at 6.5yr, softened wings for out-of-band candidates
+- Location: Pune/Noida/Tier-1 India preferred
+- Behavioral multiplier: availability envelope ∈ [0.5, 1.15]</p>
+<p><strong>Layer 3 — Cross-encoder re-ranking</strong> (corrective layer for top 1000)
+- <code>ms-marco-MiniLM-L-6-v2</code> reads (JD, candidate career text) <strong>jointly</strong>
+- Catches false positives the bi-encoder misses: computer vision work scored as relevant because both share "model", "fine-tuned", "production" keywords
+- Blended 45% CE + 55% bi-encoder → prevents overcorrection</p>
+<hr />
+<h2>Slide 4: Scoring Formula</h2>
+<pre><code>gate = 0 if honeypot OR disqualifier, else 1
+
+raw = 0.30×semantic + 0.20×lexical + 0.25×skill_ev
+    + 0.15×career_fit + 0.05×yoe_band + 0.05×location
+
+semantic = 0.45×CE_normalized + 0.55×bi_encoder_cosine
+
+final = gate × raw × behavioral_multiplier    # behavioral ∈ [0.5, 1.15]
+</code></pre>
+<p>Skill trust factor per skill:</p>
+<pre><code>trust = proficiency_mult × min(1, months/12) × min(1, endorsements/10)
+if endorsements == 0 and months == 0: trust ×= 0.05
+</code></pre>
+<p>Career fit composition:</p>
+<pre><code>base = title_archetype_weight
+     + eval_experience_bonus (+0.15)
+     + scale_experience_bonus (+0.05)
+     + education_tier_bonus (+0.03 tier_1, +0.02 tier_2)
+     + certification_bonus (+0.02 for 1+, +0.03 for 3+)
+     × disqualifier_penalties
+</code></pre>
+<hr />
+<h2>Slide 5: How We Handle the Traps</h2>
+<table>
+<thead>
+<tr>
+<th>Trap</th>
+<th>Problem</th>
+<th>Our Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Keyword stuffers</strong></td>
+<td>HR Manager lists "RAG", "Pinecone" as skills</td>
+<td>Trust factor kills them: 0 endorsements + 0 months × 0.05 = near-zero skill evidence</td>
+</tr>
+<tr>
+<td><strong>Honeypots</strong></td>
+<td>Impossible profiles (8yr at company founded 3yr ago; 10 expert skills with 0 months each)</td>
+<td>Gate: YOE &gt; 45, expert skills without duration → score = 0</td>
+</tr>
+<tr>
+<td><strong>CV/speech/robotics</strong></td>
+<td>Candidate builds image moderation but shares ML keywords</td>
+<td>Cross-encoder reads "computer vision + ResNet" against "retrieval + embeddings" and scores low</td>
+</tr>
+<tr>
+<td><strong>Consulting-only</strong></td>
+<td>Career only at TCS/Infosys/Wipro/Accenture/Cognizant/Capgemini</td>
+<td>Gate: consulting_only flag → score = 0</td>
+</tr>
+<tr>
+<td><strong>Behavioral ghosts</strong></td>
+<td>Perfect profile, inactive 200 days, 6% response rate</td>
+<td>Behavioral multiplier: -0.12 for stale, -0.05 for low response → effective score drops 15-20%</td>
+</tr>
+<tr>
+<td><strong>Title-chasers</strong></td>
+<td>Senior → Staff → Principal every 1.5yr, avg tenure &lt; 18mo</td>
+<td>Gate: title_chaser flag → score = 0</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Slide 6: Results</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Candidates</td>
+<td>100,000</td>
+</tr>
+<tr>
+<td>Gate pass</td>
+<td>35,052 (35%)</td>
+</tr>
+<tr>
+<td>Gate fail</td>
+<td>64,948 (65%)</td>
+</tr>
+<tr>
+<td>Honeypots in top 100</td>
+<td>0 (DQ threshold: &gt;10%)</td>
+</tr>
+<tr>
+<td>Cross-encoder re-ranked</td>
+<td>Top 1,000</td>
+</tr>
+<tr>
+<td>Ranking time</td>
+<td>~55 seconds (&lt; 5 min limit)</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>&lt; 16 GB</td>
+</tr>
+<tr>
+<td>Network during ranking</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Top 10 candidates:</strong>
+1. Senior AI Engineer @ Apple — 5.9yr, retrieval/embeddings, 80% reply, Trivandrum
+2. Senior ML Engineer @ Zomato — 7.2yr, retrieval/embeddings, 61% reply, Noida
+3. Staff ML Engineer @ Paytm — 7.0yr, retrieval/embeddings, 95% reply, Kochi
+4. Senior ML Engineer @ Genpact AI — 6.1yr, retrieval/embeddings, 88% reply, Pune
+5. Staff ML Engineer @ Yellow.ai — 8.6yr, retrieval/embeddings, 83% reply, Jaipur</p>
+<hr />
+<h2>Slide 7: Reasoning Design</h2>
+<p>No LLM at rank time (banned + too slow for 100K candidates).</p>
+<p><strong>Built from real fields only</strong> — no hallucination possible. Every name, number, and fact comes from the candidate's actual profile.</p>
+<p><strong>Three tone tiers:</strong>
+- Ranks 1–25: Assertive, cites specific career signals ("uses FAISS", "built ranking", "uses Pinecone")
+- Ranks 26–75: Trade-off-aware, surfaces one honest gap alongside strengths
+- Ranks 76–100: Hesitant, leads with the concern</p>
+<p><strong>Variation:</strong> 5-6 template variants per tier, selected deterministically by candidate_id hash. A reviewer sampling 10 random rows sees distinct sentence structures, not cloned templates.</p>
+<p><strong>Career-specific facts:</strong> The system extracts notable signals from career descriptions (FAISS mentions, BM25 usage, RAG implementation, A/B testing experience, NDCG/MRR evaluation) and includes them in the reasoning.</p>
+<hr />
+<h2>Slide 8: Reproducibility</h2>
+<p><strong>Single reproduce command:</strong></p>
+<pre><code class="language-bash">python -m src.rank --candidates candidates.jsonl --artifacts ./artifacts --out submission.csv
+</code></pre>
+<p><strong>Pre-computation (run once):</strong></p>
+<pre><code class="language-bash">python -m src.precompute --candidates candidates.jsonl --artifacts ./artifacts
+</code></pre>
+<p>Downloads sentence-transformer + cross-encoder models from HuggingFace (~170MB), encodes 100K candidates, builds TF-IDF index. May exceed 5 min (allowed for pre-compute).</p>
+<p><strong>Reproducibility guarantees:</strong>
+- All weights and thresholds in a single <code>config.py</code> — no magic numbers
+- Artifacts directory is gitignored; all generated by <code>precompute.py</code> from source
+- Models sourced from HuggingFace (cached after first download)
+- Ranking step (<code>rank.py</code>) runs with no network, no GPU, &lt; 16 GB RAM
+- Validated with official <code>validate_submission.py</code></p>
+<p><strong>Sandbox:</strong> Gradio HF Space (upload → rank → download CSV) + Docker option</p>
+<hr />
+<h2>Slide 9: What We'd Improve</h2>
+<ul>
+<li><strong>L12 cross-encoder</strong>: larger model for better reading comprehension of career descriptions</li>
+<li><strong>Learning-to-rank</strong>: replace fixed weights with an XGBoost ranker trained on behavioral signal feedback loops</li>
+<li><strong>Richer career parsing</strong>: extract specific project signals (scale: "50M+ queries", eval rigor: "NDCG", domain: "matching/recommendations")</li>
+<li><strong>Approximate nearest neighbors</strong>: FAISS IVF for sub-second candidate retrieval when scaling beyond 200K</li>
+</ul>
+<hr />
+<h2>Slide 10: Submission</h2>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GitHub repo</td>
+<td>codex-mohan/indiaruns-ranker (private)</td>
+</tr>
+<tr>
+<td>Ranked CSV</td>
+<td>codexmohan_6487.csv (100 candidates, validated)</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>55 seconds (spec: &lt; 5 min)</td>
+</tr>
+<tr>
+<td>Honeypots in top-100</td>
+<td>0 (spec: &lt; 10%)</td>
+</tr>
+<tr>
+<td>Deck</td>
+<td>This document (→ PDF)</td>
+</tr>
+<tr>
+<td>Sandbox</td>
+<td>Gradio HF Space + Docker</td>
+</tr>
+<tr>
+<td>Team</td>
+<td>The Monolith — Mohana Krishna, Vellore, Tamil Nadu</td>
+</tr>
+</tbody>
+</table></div>
+</body></html>
