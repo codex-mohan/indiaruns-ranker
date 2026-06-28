@@ -114,6 +114,8 @@ def generate_reasoning(feat: dict, rank: int) -> str:
             gap_options.append(f"low recruiter response ({response_pct})")
         if feat.get("is_consulting_only"):
             gap_options.append("consulting-only background")
+        if feat.get("is_currently_at_consulting") and not feat.get("is_consulting_only"):
+            gap_options.append(f"currently at {company} (consulting)")
         if feat.get("has_recent_code_gap"):
             gap_options.append("recent production code gap")
         if not skills:
@@ -151,6 +153,8 @@ def generate_reasoning(feat: dict, rank: int) -> str:
             concerns.append("no relevant AI/retrieval skills")
         if feat.get("is_consulting_only"):
             concerns.append("consulting-only career")
+        if feat.get("is_currently_at_consulting") and not feat.get("is_consulting_only"):
+            concerns.append("consulting firm background")
         if days_active > C.RECENCY_STALE_DAYS:
             concerns.append(f"inactive ({days_active}d)")
         if rrr < 0.2:

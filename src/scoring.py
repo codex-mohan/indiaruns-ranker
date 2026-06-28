@@ -62,6 +62,10 @@ def career_fit_score(feat: dict) -> float:
     # Penalty signals
     if feat.get("is_consulting_only"):
         base *= 0.1
+    elif feat.get("is_currently_at_consulting"):
+        # JD: "currently at consulting but prior product-company experience is fine"
+        # Moderate penalty — not disqualifying, but lower than pure product candidates
+        base *= 0.55
     if feat.get("has_recent_code_gap"):
         base *= 0.7
     if feat.get("is_research_only"):

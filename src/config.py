@@ -100,11 +100,12 @@ SCALE_KEYWORDS = [
 ]
 
 # ── hard disqualifiers ────────────────────────────────────────────────────
-# Consulting firms per the JD: "TCS, Infosys, Wipro, Accenture, Cognizant, Capgemini"
+# Consulting firms per the JD: "TCS, Infosys, Wipro, Accenture, Cognizant, Capgemini, etc."
 CONSULTING_FIRMS = {
     "tcs", "infosys", "wipro", "accenture", "cognizant", "capgemini",
     "tech mahindra", "hcl", "mindtree", "larsen toubro", "ltimindtree",
-    "mpHASIS", "mphasis", "hexaware", "niit technologies", "bsnl",
+    "mphasis", "hexaware", "niit technologies", "bsnl",
+    "genpact",
 }
 
 # Titles that indicate pure research / academic background

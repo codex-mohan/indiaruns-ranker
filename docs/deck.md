@@ -22,9 +22,10 @@ The dataset also contains ~80 honeypots (impossible profiles), keyword stuffers 
 ---
 
 ## Slide 3: Architecture — Three Layers
-**Layer 1 — Gate** (filters noise → 35K of 100K pass)
+**Layer 1 — Gate** (filters noise → 35,039 of 100K pass)
 - Honeypot detection: impossible profiles → score = 0
-- Hard disqualifiers: consulting-only (TCS/Infosys/Wipro), research-only, title-chasers, no production code in 18+ months, closed-source careers without external validation
+- Hard disqualifiers: consulting-only careers (TCS/Infosys/Wipro/Accenture/Cognizant/Capgemini/Genpact etc.), research-only, title-chasers, no production code in 18+ months, closed-source careers without external validation
+- Current consulting role penalty: candidates at consulting firms with prior product-company experience are penalized but not disqualified (per JD)
 
 **Layer 2 — Bi-encoder ranking** (7-component hybrid score)
 - Semantic: `all-MiniLM-L6-v2` cosine similarity (catches "built a recsys" ≈ "retrieval")
@@ -79,7 +80,7 @@ base = title_archetype_weight
 | **Keyword stuffers** | HR Manager lists "RAG", "Pinecone" as skills | Trust factor kills them: 0 endorsements + 0 months × 0.05 = near-zero skill evidence |
 | **Honeypots** | Impossible profiles (8yr at company founded 3yr ago; 10 expert skills with 0 months each) | Gate: YOE > 45, expert skills without duration → score = 0 |
 | **CV/speech/robotics** | Candidate builds image moderation but shares ML keywords | Cross-encoder reads "computer vision + ResNet" against "retrieval + embeddings" and scores low |
-| **Consulting-only** | Career only at TCS/Infosys/Wipro/Accenture/Cognizant/Capgemini | Gate: consulting_only flag → score = 0 |
+| **Consulting firms** | Career at TCS/Infosys/Wipro/Accenture/Cognizant/Capgemini/Genpact | Gate: consulting-only → score = 0. Current consulting role with prior product experience: moderate career-fit penalty (0.55x), not disqualified per JD |
 | **Behavioral ghosts** | Perfect profile, inactive 200 days, 6% response rate | Behavioral multiplier: -0.12 for stale, -0.05 for low response → effective score drops 15-20% |
 | **Title-chasers** | Senior → Staff → Principal every 1.5yr, avg tenure < 18mo | Gate: title_chaser flag → score = 0 |
 
@@ -90,8 +91,8 @@ base = title_archetype_weight
 | Metric | Value |
 |---|---|
 | Candidates | 100,000 |
-| Gate pass | 35,044 (35%) |
-| Gate fail | 64,956 (65%) |
+| Gate pass | 35,039 (35%) |
+| Gate fail | 64,961 (65%) |
 | Honeypots in top 100 | 0 (DQ threshold: >10%) |
 | Cross-encoder re-ranked | Top 1,000 |
 | Ranking time | 91.3 seconds (< 5 min limit) |
@@ -166,7 +167,7 @@ Encodes 100K candidates, builds TF-IDF index, saves model caches for offline ran
 |---|---|
 | GitHub repo | codex-mohan/indiaruns-ranker (private) |
 | Ranked CSV | codexmohan_6487.csv (100 candidates, validated) |
-| Runtime | 91.3 seconds (spec: < 5 min) |
+| Runtime | 53.3 seconds (spec: < 5 min) |
 | Honeypots in top-100 | 0 (spec: < 10%) |
 | Deck | This document (→ PDF) |
 | Sandbox | Gradio HF Space + Docker |

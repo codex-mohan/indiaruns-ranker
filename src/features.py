@@ -112,6 +112,7 @@ def extract(cand: dict) -> dict[str, Any]:
     companies_all = [c.get("company", "") for c in career]
     consulting_count = sum(1 for c in companies_all if _CONSULTING_RE.search(c))
     is_consulting_only = (len(companies_all) > 0 and consulting_count == len(companies_all))
+    is_currently_at_consulting = bool(_CONSULTING_RE.search(company))
 
     # ── production code gap ────────────────────────────────────────────
     has_recent_code_gap = False
@@ -298,6 +299,7 @@ def extract(cand: dict) -> dict[str, Any]:
         "current_industry": industry,
         "current_company_size": company_size,
         "is_consulting_only": is_consulting_only,
+        "is_currently_at_consulting": is_currently_at_consulting,
         "has_recent_code_gap": has_recent_code_gap,
         "is_title_chaser": is_title_chaser,
         "is_research_only": is_research_only,

@@ -14,8 +14,8 @@ The JD is intentionally adversarial. A naive keyword matcher can over-rank profi
 
 - Submission file: `codexmohan_6487.csv`
 - Official validator: passing
-- Latest full ranking run: `91.3s` on CPU, cold start, no network during ranking
-- Latest gate result: `35,044` pass, `64,956` fail
+- Latest full ranking run: `53.3s` on CPU, no network during ranking
+- Latest gate result: `35,039` pass, `64,961` fail
 - Gated honeypots in top 100: `0/100`
 - Runtime constraint: under the 5-minute Stage 3 ranking limit
 
@@ -131,14 +131,13 @@ Honeypot signatures currently checked:
 
 JD hard disqualifiers currently checked:
 
-- Consulting-only career history.
+- Consulting-only career history (all companies are consulting firms).
+- Current consulting role penalty: candidates currently at a consulting firm (TCS, Infosys, Wipro, Accenture, Cognizant, Capgemini, Genpact, etc.) receive a moderate career-fit penalty even if prior roles were at product companies. Per the JD: "currently at one of these companies but have prior product-company experience, that's fine" — these candidates are not disqualified, but ranked lower than equivalent product-company candidates.
 - Research-heavy background without production-code evidence.
 - Title-chaser pattern with very short average tenure.
 - Tech-lead/architecture-only profile with no recent production-code signal.
 - Closed-source-only services/consulting background without external validation.
 - No relevant retrieval or ML-support skills.
-
-Candidates failing the gate receive score `0` and are excluded from the final top-100 selection.
 
 ## Reasoning
 
