@@ -1,62 +1,48 @@
-"""Honeypot detection + hard-disqualifier gate.
+"""Honeypot detection plus hard-disqualifier gate."""
 
-Returns gate=1 for passable candidates, gate=0 for disqualifiers.
-A candidate with gate=0 is ranked last (score=0).
-"""
 from . import config as C
 
 
 def honeypot_score(feat: dict) -> bool:
-    """Return True if the candidate has a honeypot signature.
-
-    Checks:
-    - Expert in many skills with zero duration each (keyword stuffer).
-    - YOE physically impossible.
-    - Skills with "expert" proficiency but 0 months usage.
-    """
-    skills_evidenced = feat.get("skills_evidenced", {})
+    """Return True if the candidate has a honeypot signature."""
     yoe = feat.get("yoe", 0)
 
-    # YOE sanity
     if yoe < C.HONEYPOT_YOE_MINIMUM_REASONABLE or yoe > C.HONEYPOT_YOE_MAXIMUM:
         return True
 
-    # This is checked at extract time via skills_evidenced but we also do a
-    # direct check against the raw data stored in feat.  However skills_evidenced
-    # values are trust-weighted and may be fractional — we need the raw counts.
-    # Since we don't store raw skill data here, we rely on the evidence scores
-    # being extremely low as a proxy.
-    # The real honeypot logic is more robust in the rank.py pre-gate that has
-    # access to the raw candidate JSON.  This is a secondary safety net.
+    if feat.get("expert_zero_duration_count", 0) >= C.HONEYPOT_MIN_EXPERT_SKILLS_FOR_FLAG:
+        return True
+
+    if (
+        feat.get("zero_endorsement_zero_duration_count", 0)
+        >= C.HONEYPOT_MAX_SKILLS_WITH_ZERO_ENDORSEMENTS_AND_ZERO_DURATION
+    ):
+        return True
+
+    if feat.get("high_claim_zero_evidence_count", 0) >= C.HONEYPOT_MIN_EXPERT_SKILLS_FOR_FLAG:
+        return True
 
     return False
 
 
 def hard_disqualifier(feat: dict) -> tuple[bool, str]:
-    """Check JD hard disqualifiers.  Returns (disqualified, reason)."""
+    """Check JD hard disqualifiers. Returns (disqualified, reason)."""
 
-    # consulting only
     if feat.get("is_consulting_only"):
         return True, "consulting_only"
 
-    # research only without production
     if feat.get("is_research_only") and feat.get("no_production_code"):
         return True, "research_no_production"
 
-    # title chaser
     if feat.get("is_title_chaser"):
         return True, "title_chaser"
 
-    # pure tech-lead / architecture with no recent code
     if feat.get("has_recent_code_gap") and feat.get("no_production_code"):
         return True, "no_recent_code"
 
-    # closed-source only, no external validation
     if feat.get("closed_source_only"):
         return True, "closed_source_only"
 
-    # Primary CV/speech/robotics with no NLP/IR
-    # (checked via skills_evidence: if no retrieval/ML support skills at all)
     retrieval = feat.get("retrieval_must_count", 0) + feat.get("retrieval_nice_count", 0)
     ml = feat.get("ml_support_count", 0)
     if retrieval == 0 and ml == 0:

@@ -103,10 +103,10 @@ def extract(cand: dict) -> dict[str, Any]:
         yoe_band *= 0.6
     elif yoe < 4.0:
         yoe_band *= 0.8
-    elif yoe > 12.0:
-        yoe_band *= 0.6
     elif yoe > 15.0:
         yoe_band *= 0.4
+    elif yoe > 12.0:
+        yoe_band *= 0.6
 
     # ── consulting only check ──────────────────────────────────────────
     companies_all = [c.get("company", "") for c in career]
@@ -166,12 +166,22 @@ def extract(cand: dict) -> dict[str, Any]:
     retrieval_nice_count = 0
     llm_finetune_count = 0
     ml_support_count = 0
+    expert_zero_duration_count = 0
+    zero_endorsement_zero_duration_count = 0
+    high_claim_zero_evidence_count = 0
 
     for s in skills:
         sn = s.get("name", "").lower()
         proficiency = s.get("proficiency", "beginner")
         endorsements = s.get("endorsements", 0)
         duration = s.get("duration_months", 0)
+
+        if proficiency == "expert" and duration == 0:
+            expert_zero_duration_count += 1
+        if endorsements == 0 and duration == 0:
+            zero_endorsement_zero_duration_count += 1
+            if proficiency in ("advanced", "expert"):
+                high_claim_zero_evidence_count += 1
 
         # trust factor: penalize skills with no real usage
         proficiency_mult = {"expert": 1.0, "advanced": 0.85, "intermediate": 0.6, "beginner": 0.3}
@@ -226,7 +236,7 @@ def extract(cand: dict) -> dict[str, Any]:
     # last_active recency
     last_active_str = signals.get("last_active_date", "")
     last_active_date = _parse_date(last_active_str)
-    last_active_days_ago = (last_active_date - _TODAY).days if last_active_date else 9999
+    last_active_days_ago = (_TODAY - last_active_date).days if last_active_date else 9999
 
     # skill assessment average — only count relevant assessments
     assessments = signals.get("skill_assessment_scores", {})
@@ -294,6 +304,9 @@ def extract(cand: dict) -> dict[str, Any]:
         "no_production_code": no_production_code,
         "closed_source_only": closed_source_only,
         "skills_evidenced": skills_evidenced,
+        "expert_zero_duration_count": expert_zero_duration_count,
+        "zero_endorsement_zero_duration_count": zero_endorsement_zero_duration_count,
+        "high_claim_zero_evidence_count": high_claim_zero_evidence_count,
         "retrieval_must_count": retrieval_must_count,
         "retrieval_nice_count": retrieval_nice_count,
         "llm_finetune_count": llm_finetune_count,

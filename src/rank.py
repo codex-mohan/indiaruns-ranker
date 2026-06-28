@@ -5,6 +5,7 @@ Must run < 5 min on CPU, no network.
 """
 import argparse
 import csv
+import hashlib
 import json
 import os
 import pickle
@@ -29,6 +30,61 @@ from .reasoning import generate_reasoning
 from .rerank import rerank as ce_rerank
 
 
+def _ids_sha256(ids: list[str]) -> str:
+    return hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest()
+
+
+def _validate_artifacts(
+    artifacts_dir: str,
+    ids: np.ndarray,
+    cand_embs: np.ndarray,
+    matrix,
+    feats: list[dict],
+) -> None:
+    """Fail fast when precomputed artifacts do not match the candidate stream."""
+    artifact_ids = [str(x) for x in ids.tolist()]
+    candidate_ids = [f["candidate_id"] for f in feats]
+
+    if len(candidate_ids) != len(artifact_ids):
+        raise ValueError(
+            f"Artifact/candidate count mismatch: ids.npy has {len(artifact_ids)}, "
+            f"candidate file has {len(candidate_ids)}"
+        )
+    if candidate_ids != artifact_ids:
+        for i, (cand_id, artifact_id) in enumerate(zip(candidate_ids, artifact_ids), start=1):
+            if cand_id != artifact_id:
+                raise ValueError(
+                    f"Artifact/candidate order mismatch at row {i}: "
+                    f"candidate file has {cand_id}, ids.npy has {artifact_id}"
+                )
+        raise ValueError("Artifact/candidate order mismatch")
+    if cand_embs.shape[0] != len(candidate_ids):
+        raise ValueError(
+            f"cand_embs.npy row count {cand_embs.shape[0]} does not match "
+            f"{len(candidate_ids)} candidates"
+        )
+    if matrix.shape[0] != len(candidate_ids):
+        raise ValueError(
+            f"TF-IDF matrix row count {matrix.shape[0]} does not match "
+            f"{len(candidate_ids)} candidates"
+        )
+
+    manifest_path = os.path.join(artifacts_dir, "manifest.json")
+    if os.path.exists(manifest_path):
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+        expected_count = manifest.get("candidate_count")
+        if expected_count != len(candidate_ids):
+            raise ValueError(
+                f"manifest candidate_count {expected_count} does not match "
+                f"{len(candidate_ids)} candidates"
+            )
+        expected_hash = manifest.get("candidate_ids_sha256")
+        actual_hash = _ids_sha256(candidate_ids)
+        if expected_hash != actual_hash:
+            raise ValueError("manifest candidate_ids_sha256 does not match candidate file")
+
+
 def run(candidates_path: str, artifacts_dir: str, out_path: str):
     t0 = time.time()
 
@@ -36,14 +92,15 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str):
     required = ["jd_emb.npy", "cand_embs.npy", "ids.npy", "tfidf.pkl"]
     missing = [f for f in required if not os.path.exists(os.path.join(artifacts_dir, f))]
     if missing:
-        print(f"ERROR: Missing artifacts in {artifacts_dir}: {', '.join(missing)}")
-        print("Run precompute.py first: python -m src.precompute --candidates <path> --artifacts ./artifacts")
-        return
+        raise FileNotFoundError(
+            f"Missing artifacts in {artifacts_dir}: {', '.join(missing)}. "
+            "Run precompute.py first: python -m src.precompute --candidates <path> --artifacts ./artifacts"
+        )
 
     # ── load artifacts ──────────────────────────────────────────────────
     jd_emb = np.load(os.path.join(artifacts_dir, "jd_emb.npy"))
     cand_embs = np.load(os.path.join(artifacts_dir, "cand_embs.npy"))
-    ids = np.load(os.path.join(artifacts_dir, "ids.npy"), allow_pickle=True)
+    ids = np.load(os.path.join(artifacts_dir, "ids.npy"), allow_pickle=False)
 
     with open(os.path.join(artifacts_dir, "tfidf.pkl"), "rb") as f:
         vec, matrix = pickle.load(f)
@@ -54,6 +111,7 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str):
     for cand in stream_candidates(candidates_path):
         feats.append(extract(cand))
     print(f"  {len(feats)} candidates loaded in {time.time()-t0:.1f}s")
+    _validate_artifacts(artifacts_dir, ids, cand_embs, matrix, feats)
 
     # ── compute component scores ───────────────────────────────────────
     t1 = time.time()
@@ -122,15 +180,18 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str):
     if len(top_n) > 100 and os.path.exists(ce_model_path):
         top_n = ce_rerank(jd_text, top_n, model_path=ce_model_path)
     elif len(top_n) > 100:
-        print("  Cross-encoder model not found — using bi-encoder scores only")
-        for r in top_n:
-            r["final_score"] = r["score"]
+        raise FileNotFoundError(
+            f"Cross-encoder model not found at {ce_model_path}. "
+            "Run python scripts/download_models.py --artifacts ./artifacts before precompute/ranking."
+        )
     else:
         for r in top_n:
             r["final_score"] = r["score"]
 
     # ── take top 100 from re-ranked list ───────────────────────────────
     top100 = top_n[:100]
+    if len(top100) != 100:
+        raise ValueError(f"Expected at least 100 gate-passed candidates, found {len(top100)}")
 
     # ── re-sort top 100 by rounded score for correct tie-breaking ─────
     for r in top100:

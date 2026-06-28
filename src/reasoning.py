@@ -85,7 +85,7 @@ def generate_reasoning(feat: dict, rank: int) -> str:
         templates = [
             (f"{title_display} with {yoe:.1f} yrs; {company}; "
              f"qualified on {skill_str}{career_nugget}; "
-             f"{response_pct} reply, active {days_active}d; {loc_clean}."),
+             f"{response_pct} reply, active {days_active}d ago; {loc_clean}."),
             (f"{title} — {yoe:.1f} yrs, {company}; "
              f"strong on {skill_str}{career_nugget}; "
              f"engaged ({response_pct} reply, last active {days_active}d ago); {loc_clean}."),
@@ -94,10 +94,10 @@ def generate_reasoning(feat: dict, rank: int) -> str:
              f"{response_pct} response rate; {loc_clean}."),
             (f"{title_display} at {company}, {yoe:.1f} yrs; "
              f"{skill_str}{career_nugget}; "
-             f"{response_pct} reply, active {days_active}d; {loc_clean}."),
+             f"{response_pct} reply, active {days_active}d ago; {loc_clean}."),
             (f"{title.lower()} ({yoe:.1f} yrs), {company}; "
              f"qualified: {skill_str}{career_nugget}; "
-             f"responds {response_pct}, last active {days_active}d; {loc_clean}."),
+             f"responds {response_pct}, last active {days_active}d ago; {loc_clean}."),
             (f"{loc_clean} — {title.lower()} with {yoe:.1f} yrs at {company}; "
              f"{skill_str}{career_nugget}; "
              f"{response_pct} reply rate."),

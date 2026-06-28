@@ -4,6 +4,7 @@ Builds embeddings, TF-IDF index, feature vectors, and JD embedding.
 Run this once (may exceed 5 min, may use network to fetch model).
 """
 import argparse
+import hashlib
 import json
 import os
 import pickle
@@ -16,6 +17,15 @@ from .io import stream_candidates
 from .features import extract
 from .semantic import load_model, encode_texts
 from .sparse import build_tfidf
+
+
+def _model_dir(artifacts_dir: str, model_name: str) -> str:
+    return os.path.join(artifacts_dir, "models", model_name.replace("/", "_"))
+
+
+def _model_source(artifacts_dir: str, model_name: str) -> str:
+    local_dir = _model_dir(artifacts_dir, model_name)
+    return local_dir if os.path.exists(local_dir) else model_name
 
 
 def run(candidates_path: str, artifacts_dir: str):
@@ -61,8 +71,9 @@ def run(candidates_path: str, artifacts_dir: str):
     # ── embeddings ─────────────────────────────────────────────────────
     t2 = time.time()
     print("Loading embedding model...")
-    model = load_model(C.EMBED_MODEL)
-    print(f"  Model loaded in {time.time()-t2:.1f}s")
+    model_source = _model_source(artifacts_dir, C.EMBED_MODEL)
+    model = load_model(model_source)
+    print(f"  Model loaded from {model_source} in {time.time()-t2:.1f}s")
 
     t3 = time.time()
     print("Encoding JD...")
@@ -79,7 +90,7 @@ def run(candidates_path: str, artifacts_dir: str):
     np.save(os.path.join(artifacts_dir, "cand_embs.npy"), cand_embs)
 
     # ── save model weights for offline Stage 3 ────────────────────────
-    model_dir = os.path.join(artifacts_dir, "models", C.EMBED_MODEL.replace("/", "_"))
+    model_dir = _model_dir(artifacts_dir, C.EMBED_MODEL)
     os.makedirs(model_dir, exist_ok=True)
     model.save(model_dir)
     print(f"  Model saved to {model_dir}")
@@ -103,6 +114,19 @@ def run(candidates_path: str, artifacts_dir: str):
     # ── save IDs ───────────────────────────────────────────────────────
     np.save(os.path.join(artifacts_dir, "ids.npy"), np.array(ids))
 
+    manifest = {
+        "candidate_count": n,
+        "candidate_ids_sha256": hashlib.sha256(
+            "\n".join(ids).encode("utf-8")
+        ).hexdigest(),
+        "embedding_model": C.EMBED_MODEL,
+        "cross_encoder_model": C.CROSS_ENCODER_MODEL,
+        "candidate_embedding_shape": list(cand_embs.shape),
+        "tfidf_shape": list(matrix.shape),
+    }
+    with open(os.path.join(artifacts_dir, "manifest.json"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2, sort_keys=True)
+
     # ── save JD text ───────────────────────────────────────────────────
     with open(jd_text_path, "w", encoding="utf-8") as f:
         f.write(jd_text)
@@ -112,12 +136,10 @@ def run(candidates_path: str, artifacts_dir: str):
     print("Loading cross-encoder model for re-ranking...")
     from sentence_transformers import CrossEncoder
 
-    ce_model_dir = os.path.join(
-        artifacts_dir, "models",
-        C.CROSS_ENCODER_MODEL.replace("/", "_"),
-    )
+    ce_model_dir = _model_dir(artifacts_dir, C.CROSS_ENCODER_MODEL)
     os.makedirs(ce_model_dir, exist_ok=True)
-    ce_model = CrossEncoder(C.CROSS_ENCODER_MODEL)
+    ce_source = ce_model_dir if os.path.exists(os.path.join(ce_model_dir, "config.json")) else C.CROSS_ENCODER_MODEL
+    ce_model = CrossEncoder(ce_source)
     ce_model.save(ce_model_dir)
     print(f"  Cross-encoder saved to {ce_model_dir} in {time.time()-t6:.1f}s")
 

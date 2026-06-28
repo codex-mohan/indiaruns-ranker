@@ -90,11 +90,11 @@ base = title_archetype_weight
 | Metric | Value |
 |---|---|
 | Candidates | 100,000 |
-| Gate pass | 35,052 (35%) |
-| Gate fail | 64,948 (65%) |
+| Gate pass | 35,044 (35%) |
+| Gate fail | 64,956 (65%) |
 | Honeypots in top 100 | 0 (DQ threshold: >10%) |
 | Cross-encoder re-ranked | Top 1,000 |
-| Ranking time | ~55 seconds (< 5 min limit) |
+| Ranking time | 91.3 seconds (< 5 min limit) |
 | Memory | < 16 GB |
 | Network during ranking | None |
 
@@ -130,11 +130,16 @@ No LLM at rank time (banned + too slow for 100K candidates).
 python -m src.rank --candidates candidates.jsonl --artifacts ./artifacts --out submission.csv
 ```
 
+**Download models (run once, requires network):**
+```bash
+python scripts/download_models.py --artifacts ./artifacts
+```
+
 **Pre-computation (run once):**
 ```bash
 python -m src.precompute --candidates candidates.jsonl --artifacts ./artifacts
 ```
-Downloads sentence-transformer + cross-encoder models from HuggingFace (~170MB), encodes 100K candidates, builds TF-IDF index. May exceed 5 min (allowed for pre-compute).
+Encodes 100K candidates, builds TF-IDF index, saves model caches for offline ranking. May exceed 5 min (allowed for pre-compute).
 
 **Reproducibility guarantees:**
 - All weights and thresholds in a single `config.py` — no magic numbers
@@ -161,7 +166,7 @@ Downloads sentence-transformer + cross-encoder models from HuggingFace (~170MB),
 |---|---|
 | GitHub repo | codex-mohan/indiaruns-ranker (private) |
 | Ranked CSV | codexmohan_6487.csv (100 candidates, validated) |
-| Runtime | 55 seconds (spec: < 5 min) |
+| Runtime | 91.3 seconds (spec: < 5 min) |
 | Honeypots in top-100 | 0 (spec: < 10%) |
 | Deck | This document (→ PDF) |
 | Sandbox | Gradio HF Space + Docker |
