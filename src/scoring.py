@@ -77,47 +77,56 @@ def career_fit_score(feat: dict) -> float:
 
 
 def location_score(feat: dict) -> float:
-    """Score based on location preference."""
+    """Score based on location preference per JD.
+
+    JD: Pune/Noida preferred. Hyderabad, Pune, Mumbai, Delhi NCR welcome.
+    Outside India: case-by-case, no visa sponsorship.
+    """
     if feat.get("location_tier1_india"):
         return 1.0
     if feat.get("location_in_india"):
-        return 0.8
+        return 0.7
     if feat.get("willing_to_relocate"):
-        return 0.6
-    # Outside India, no relocation
-    return 0.3
+        # Outside India but willing to relocate — still a hurdle
+        return 0.15
+    # Outside India, no relocation — JD: "we don't sponsor work visas"
+    return 0.05
 
 
 def behavioral_multiplier(feat: dict) -> float:
-    """Multiplicative envelope from behavioral signals.
+    """Multiplicative envelope from observed behavioral signals only.
+
+    No self-reported flags (open_to_work). Only observed behavior:
+    reply rate, recency, interview completion, offer acceptance,
+    recruiter engagement, notice period, applications, GitHub.
 
     Returns value in [BEHAVIORAL_MIN, BEHAVIORAL_MAX].
     """
     mult = 1.0
 
-    # open to work
-    if feat.get("open_to_work"):
-        mult += 0.05
-
-    # recency
+    # recency — strongest reachability signal
     days = feat.get("last_active_days_ago", 9999)
     if days <= C.RECENCY_FRESH_DAYS:
         mult += 0.08
     elif days <= C.RECENCY_RECENT_DAYS:
         mult += 0.04
+    elif days <= 120:
+        mult -= 0.06
     elif days <= C.RECENCY_STALE_DAYS:
-        mult -= 0.03
+        mult -= 0.10
     else:
-        mult -= 0.12  # ghost candidate — heavy penalty
+        mult -= 0.18  # ghost candidate — heavy penalty
 
-    # recruiter response rate
+    # recruiter response rate — key reachability signal
     rrr = feat.get("recruiter_response_rate", 0.0)
     if rrr >= 0.7:
-        mult += 0.08
+        mult += 0.10
     elif rrr >= 0.4:
         mult += 0.03
     elif rrr < 0.15:
-        mult -= 0.05
+        mult -= 0.12  # very low engagement
+    elif rrr < 0.25:
+        mult -= 0.06
 
     # interview completion rate
     icr = feat.get("interview_completion_rate", 0.0)
@@ -133,6 +142,16 @@ def behavioral_multiplier(feat: dict) -> float:
             mult += 0.03
         elif oar < 0.2:
             mult -= 0.03
+
+    # active applicant — applying to roles = reachable
+    apps = feat.get("applications_submitted_30d", 0)
+    if apps >= 2:
+        mult += 0.03
+
+    # recruiter interest — being saved = reachable + desirable
+    saves = feat.get("saved_by_recruiters_30d", 0)
+    if saves >= 3:
+        mult += 0.02
 
     # github activity
     gh = feat.get("github_activity_score", -1.0)
@@ -157,14 +176,16 @@ def behavioral_multiplier(feat: dict) -> float:
     elif sal_min > C.SALARY_MAX_REASONABLE:
         mult -= 0.03
 
-    # notice period
+    # notice period — JD: "sub-30-day notice preferred, can buy out up to 30"
     np_ = feat.get("notice_period_days", 90)
     if np_ <= C.NOTICE_GOOD_DAYS:
-        mult += 0.03
+        mult += 0.04
     elif np_ <= C.NOTICE_MEDIUM_DAYS:
         mult += 0.0
+    elif np_ <= 90:
+        mult -= 0.02
     else:
-        mult -= 0.03
+        mult -= 0.05
 
     return max(C.BEHAVIORAL_MIN, min(C.BEHAVIORAL_MAX, mult))
 

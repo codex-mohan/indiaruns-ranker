@@ -100,9 +100,9 @@ def extract(cand: dict) -> dict[str, Any]:
     # soft wings: extend band beyond strict range
     # JD says "we'll seriously consider candidates outside the band"
     if yoe < 3.0:
-        yoe_band *= 0.6
+        yoe_band *= 0.3
     elif yoe < 4.0:
-        yoe_band *= 0.8
+        yoe_band *= 0.6
     elif yoe > 15.0:
         yoe_band *= 0.4
     elif yoe > 12.0:
@@ -233,6 +233,7 @@ def extract(cand: dict) -> dict[str, Any]:
     profile_completeness = signals.get("profile_completeness_score", 0.0)
     search_appearance = signals.get("search_appearance_30d", 0)
     saved_by_recruiters = signals.get("saved_by_recruiters_30d", 0)
+    applications_submitted = signals.get("applications_submitted_30d", 0)
 
     # last_active recency
     last_active_str = signals.get("last_active_date", "")
@@ -334,6 +335,7 @@ def extract(cand: dict) -> dict[str, Any]:
         "skill_assessment_relevant_count": skill_assessment_relevant_count,
         "search_appearance": search_appearance,
         "saved_by_recruiters": saved_by_recruiters,
+        "applications_submitted_30d": applications_submitted,
         "text_blob": text_blob,
         "career_text": career_text,
         "education_tier": best_tier,

@@ -140,8 +140,8 @@ def generate_reasoning(feat: dict, rank: int) -> str:
         strengths = []
         if skills:
             strengths.append(skill_str)
-        if feat.get("open_to_work"):
-            strengths.append("open to work")
+        if feat.get("applications_submitted_30d", 0) >= 2:
+            strengths.append("actively applying")
         if rrr > 0.5:
             strengths.append(f"{response_pct} reply")
         if cs:
