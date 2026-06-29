@@ -199,6 +199,74 @@ docker run --rm indiaruns-ranker --candidates data/sample/sample_candidates.json
 - Local validation confirms format compliance, runtime readiness, deterministic reproduction, and no gated honeypots in the produced top 100.
 - The latest measured runtime on this machine was `225.5s` (cold start), well under the 5-minute Stage 3 limit.
 
+## Architecture Decisions
+
+### YOE Computation: Career Dates Over Self-Reported Field
+
+The `years_of_experience` field in candidate profiles is unreliable. We found candidates where the field says 2.9 years but career history shows 6.2 years, and the candidate's own summary says "6.3 years." Rather than trusting a single number field, we compute YOE from career history dates (earliest start → today).
+
+**Logic:**
+- If reported ≤ calculated: use calculated (handles typos, underreporting)
+- If reported > calculated: penalize with `calculated * max(0.3, sqrt(calculated/reported))` (handles fraud)
+- Fallback to reported if no career dates are parseable
+
+This means a candidate who underreports (typo like 2.9 instead of 6.9) gets the correct YOE, while a candidate who overreports (claiming 15yr on a 6yr career) gets a proportional penalty.
+
+### Behavioral Signals: Observed Behavior Over Self-Reported Flags
+
+The JD explicitly says: "a perfect-on-paper candidate who hasn't logged in for 6 months and has a 5% recruiter response rate is, for hiring purposes, not actually available."
+
+We removed the `open_to_work_flag` from scoring. It's a self-reported button click. Instead, we use observed signals:
+- `recruiter_response_rate`: do they reply to recruiters?
+- `last_active_date`: when did they last log in?
+- `interview_completion_rate`: do they show up to interviews?
+- `offer_acceptance_rate`: do they accept offers?
+- `applications_submitted_30d`: are they actively applying?
+- `saved_by_recruiters_30d`: are recruiters interested in them?
+- `notice_period_days`: how soon can they start?
+
+### Consulting Detection: Current Role Matters
+
+The JD says: "People who have only worked at consulting firms... we've had bad fit experiences. If you're currently at one of these companies but have prior product-company experience, that's fine."
+
+We implement this as a two-tier system:
+- **Consulting-only** (all companies are consulting): career_fit × 0.1 (near-disqualification)
+- **Current consulting** (current company is consulting, prior is product): career_fit × 0.55 (moderate penalty)
+
+This catches candidates who spent 4 years at Genpact after LinkedIn — they're not disqualified per the JD, but ranked lower than equivalent product-company candidates.
+
+### Location: Hard Penalty for Outside India
+
+The JD says: "Outside India: case-by-case, but we don't sponsor work visas."
+
+We implement this as:
+- Tier-1 India (Pune, Noida, Delhi, Mumbai, etc.): 1.0
+- Other India: 0.7
+- Outside India, willing to relocate: 0.15
+- Outside India, no relocation: 0.05
+
+A candidate in New York with strong skills will score near-zero on location, which significantly reduces their final ranking.
+
+### Honeypot Detection
+
+The dataset contains ~80 impossible profiles. We detect:
+- Impossible YOE (< 0 or > 45)
+- 3+ expert skills with 0 months of usage
+- 8+ skills with both 0 endorsements and 0 months
+- 3+ advanced/expert claims with no endorsement and no duration
+
+Candidates failing the gate receive score 0 and are excluded from top 100.
+
+### Cross-Encoder Re-Ranking
+
+The top 1,000 gate-passed candidates are re-ranked with `cross-encoder/ms-marco-MiniLM-L-6-v2`, which reads (JD, candidate career text) jointly. This catches false positives the bi-encoder misses — e.g., computer vision work scored as relevant because both share "model", "fine-tuned", "production" keywords.
+
+Final semantic score: `0.45 × cross_encoder_normalized + 0.55 × bi_encoder_cosine`
+
+### Grid Search (Preserved, Not Applied)
+
+We ran a grid search over 10,517 weight combinations (step=0.05). The best proxy score was only 1.5% better than hand-tuned weights, and the top 10 changed significantly (6/10 different candidates). Without ground truth labels, we cannot verify the grid search improves NDCG@10. The weights are preserved on branch `feat/grid-search-weights` for future use.
+
 ## Team
 
 | Field | Value |

@@ -149,7 +149,7 @@ def behavioral_multiplier(feat: dict) -> float:
         mult += 0.03
 
     # recruiter interest — being saved = reachable + desirable
-    saves = feat.get("saved_by_recruiters_30d", 0)
+    saves = feat.get("saved_by_recruiters", 0)
     if saves >= 3:
         mult += 0.02
 
