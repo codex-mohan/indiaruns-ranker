@@ -95,7 +95,7 @@ base = title_archetype_weight
 | Gate fail | 64,961 (65%) |
 | Honeypots in top 100 | 0 (DQ threshold: >10%) |
 | Cross-encoder re-ranked | Top 1,000 |
-| Ranking time | 225.5 seconds (< 5 min limit) |
+| Ranking time | 120.9 seconds (< 5 min limit) |
 | Memory | < 16 GB |
 | Network during ranking | None |
 
@@ -171,7 +171,7 @@ Encodes 100K candidates, builds TF-IDF index, saves model caches for offline ran
 |---|---|
 | GitHub repo | codex-mohan/indiaruns-ranker (private) |
 | Ranked CSV | codexmohan_6487.csv (100 candidates, validated) |
-| Runtime | 225.5 seconds (spec: < 5 min) |
+| Runtime | 120.9 seconds (spec: < 5 min) |
 | Honeypots in top-100 | 0 (spec: < 10%) |
 | Deck | This document (→ PDF) |
 | Sandbox | Gradio HF Space + Docker |

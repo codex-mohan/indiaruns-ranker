@@ -14,7 +14,7 @@ The JD is intentionally adversarial. A naive keyword matcher can over-rank profi
 
 - Submission file: `codexmohan_6487.csv`
 - Official validator: passing
-- Latest full ranking run: `225.5s` on CPU, cold start, no network during ranking
+- Latest full ranking run: `120.9s` on CPU, cold start, no network during ranking
 - Latest gate result: `35,039` pass, `64,961` fail
 - Gated honeypots in top 100: `0/100`
 - Runtime constraint: under the 5-minute Stage 3 ranking limit
@@ -197,7 +197,7 @@ docker run --rm indiaruns-ranker --candidates data/sample/sample_candidates.json
 
 - The hidden ground-truth metrics cannot be verified locally because the leaderboard labels are private.
 - Local validation confirms format compliance, runtime readiness, deterministic reproduction, and no gated honeypots in the produced top 100.
-- The latest measured runtime on this machine was `225.5s` (cold start), well under the 5-minute Stage 3 limit.
+- The latest measured runtime on this machine was `120.9s` (cold start, PyTorch only — TensorFlow removed), well under the 5-minute Stage 3 limit.
 
 ## Architecture Decisions
 
