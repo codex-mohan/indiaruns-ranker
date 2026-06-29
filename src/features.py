@@ -58,6 +58,9 @@ _SKILL_MAP = _skill_alias_set()
 
 
 # ── main extraction ────────────────────────────────────────────────────────
+_REQUIRED_FIELDS = {"candidate_id", "profile"}
+
+
 def extract(cand: dict) -> dict[str, Any]:
     """Return a flat feature dict for one candidate.
 
@@ -79,6 +82,11 @@ def extract(cand: dict) -> dict[str, Any]:
         github_activity_score, skill_assessment_avg,
         text_blob: str,  # for embedding / TF-IDF
     """
+    if not isinstance(cand, dict):
+        raise TypeError(f"Expected dict, got {type(cand).__name__}")
+    missing = _REQUIRED_FIELDS - cand.keys()
+    if missing:
+        raise ValueError(f"Candidate missing required fields: {missing}")
     p = cand.get("profile", {})
     career = cand.get("career_history", [])
     skills = cand.get("skills", [])

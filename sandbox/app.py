@@ -54,7 +54,15 @@ def _run_ranker(candidates_path: Path, progress=gr.Progress()):
     elapsed = time.perf_counter() - started
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "Unknown ranking error").strip()
-        raise RuntimeError(detail[-1800:])
+        # Sanitize: remove absolute paths, keep error message
+        lines = detail.splitlines()
+        safe_lines = []
+        for line in lines[-20:]:  # last 20 lines only
+            if "File " in line and ("site-packages" in line or ROOT.name in line):
+                continue  # skip internal tracebacks
+            safe_lines.append(line)
+        safe_detail = "\n".join(safe_lines) if safe_lines else "Ranking failed. Check input format."
+        raise RuntimeError(safe_detail[-500:])
 
     progress(0.9, desc="Preparing preview")
 
@@ -76,12 +84,12 @@ def _run_ranker(candidates_path: Path, progress=gr.Progress()):
 def rank_uploaded(candidate_file, progress=gr.Progress()):
     if candidate_file is None:
         return None, pd.DataFrame(), "### Upload required\nPlease upload a `.jsonl` candidate file."
-
     try:
         uploaded_path = Path(candidate_file.name)
         return _run_ranker(uploaded_path, progress)
     except Exception as exc:
-        return None, pd.DataFrame(), f"### Run failed\n`{exc}`"
+        msg = str(exc)[:200]
+        return None, pd.DataFrame(), f"### Run failed\n`{msg}`"
 
 
 def rank_sample(progress=gr.Progress()):
@@ -90,7 +98,8 @@ def rank_sample(progress=gr.Progress()):
             return None, pd.DataFrame(), f"### Missing sample\n`{SAMPLE_PATH}` was not found."
         return _run_ranker(SAMPLE_PATH, progress)
     except Exception as exc:
-        return None, pd.DataFrame(), f"### Run failed\n`{exc}`"
+        msg = str(exc)[:200]
+        return None, pd.DataFrame(), f"### Run failed\n`{msg}`"
 
 
 THEME = gr.themes.Soft(

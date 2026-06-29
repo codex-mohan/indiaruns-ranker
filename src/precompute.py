@@ -31,6 +31,10 @@ def _model_source(artifacts_dir: str, model_name: str) -> str:
 def run(candidates_path: str, artifacts_dir: str):
     t0 = time.time()
     os.makedirs(artifacts_dir, exist_ok=True)
+    if not os.path.exists(candidates_path):
+        raise FileNotFoundError(f"Candidates file not found: {candidates_path}")
+    if os.path.getsize(candidates_path) == 0:
+        raise ValueError(f"Candidates file is empty: {candidates_path}")
 
     # ── stream candidates ──────────────────────────────────────────────
     print("Loading candidates...")

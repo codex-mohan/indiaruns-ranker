@@ -44,6 +44,12 @@ def rerank(
     candidates: list[dict],
     model_path: str | None = None,
 ) -> list[dict]:
+    if not candidates:
+        return candidates
+    required_keys = {"feat", "sem", "lex", "sk_ev", "car", "yoe_b", "loc", "behav", "gate", "candidate_id"}
+    missing = required_keys - set(candidates[0].keys())
+    if missing:
+        raise ValueError(f"Candidate dict missing required keys: {missing}")
     t0 = time.time()
 
     print("Loading cross-encoder...")

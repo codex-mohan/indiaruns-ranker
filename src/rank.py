@@ -85,8 +85,20 @@ def _validate_artifacts(
             raise ValueError("manifest candidate_ids_sha256 does not match candidate file")
 
 
+def _validate_inputs(candidates_path: str, artifacts_dir: str, out_path: str) -> None:
+    """Fail fast on bad inputs before doing any expensive work."""
+    if not os.path.exists(candidates_path):
+        raise FileNotFoundError(f"Candidates file not found: {candidates_path}")
+    if os.path.getsize(candidates_path) == 0:
+        raise ValueError(f"Candidates file is empty: {candidates_path}")
+    out_dir = os.path.dirname(out_path) or "."
+    if not os.path.isdir(out_dir):
+        raise FileNotFoundError(f"Output directory does not exist: {out_dir}")
+
+
 def run(candidates_path: str, artifacts_dir: str, out_path: str):
     t0 = time.time()
+    _validate_inputs(candidates_path, artifacts_dir, out_path)
 
     # ── check artifacts exist ───────────────────────────────────────────
     required = ["jd_emb.npy", "cand_embs.npy", "ids.npy", "tfidf.pkl"]
@@ -111,6 +123,8 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str):
     for cand in stream_candidates(candidates_path):
         feats.append(extract(cand))
     print(f"  {len(feats)} candidates loaded in {time.time()-t0:.1f}s")
+    if not feats:
+        raise ValueError(f"No candidates found in {candidates_path}")
     _validate_artifacts(artifacts_dir, ids, cand_embs, matrix, feats)
 
     # ── compute component scores ───────────────────────────────────────
