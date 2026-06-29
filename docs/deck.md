@@ -95,21 +95,21 @@ base = title_archetype_weight
 | Gate fail | 64,961 (65%) |
 | Honeypots in top 100 | 0 (DQ threshold: >10%) |
 | Cross-encoder re-ranked | Top 1,000 |
-| Ranking time | 57.8 seconds (< 5 min limit) |
+| Ranking time | 225.5 seconds (< 5 min limit) |
 | Memory | < 16 GB |
 | Network during ranking | None |
 
 **Top 10 candidates:**
 1. Senior AI Engineer @ Apple — 5.9yr, retrieval/embeddings, 80% reply, Trivandrum
-2. Senior ML Engineer @ Zomato — 7.2yr, retrieval/embeddings, 61% reply, Noida
-3. Staff ML Engineer @ Paytm — 7.0yr, retrieval/embeddings, 95% reply, Kochi
-4. Staff ML Engineer @ Yellow.ai — 8.6yr, RAG/Pinecone, 83% reply, Jaipur
-5. Senior ML Engineer @ PhonePe — 2.9yr, RAG/QLoRA, 75% reply, Coimbatore
+2. Senior ML Engineer @ PhonePe — 6.2yr, RAG/PEFT/QLoRA, 75% reply, Coimbatore
+3. Senior ML Engineer @ Zomato — 7.2yr, retrieval/embeddings, 61% reply, Noida
+4. Staff ML Engineer @ Paytm — 7.0yr, BM25/IR expert, 95% reply, Kochi
+5. Staff ML Engineer @ Yellow.ai — 8.6yr, RAG/Pinecone, 83% reply, Jaipur
 6. Lead AI Engineer @ Razorpay — 6.7yr, IR/LTR expert, 73% reply, Jaipur
 7. Senior AI Engineer @ Netflix — 7.8yr, BM25/LTR, 76% reply, Vizag
 8. Senior AI Engineer @ Meta — 7.9yr, BM25/Search, 79% reply, Noida
 9. Lead AI Engineer @ Sarvam AI — 6.4yr, pgvector/Qdrant, 86% reply, Delhi
-10. Senior ML Engineer @ Genpact AI — 6.1yr, IR/LLMs, 88% reply, Pune (consulting penalty applied)
+10. Senior ML Engineer @ Genpact AI — 6.1yr, IR/LLMs, 88% reply, Pune (consulting penalty)
 ---
 
 ## Slide 7: Reasoning Design
@@ -171,7 +171,7 @@ Encodes 100K candidates, builds TF-IDF index, saves model caches for offline ran
 |---|---|
 | GitHub repo | codex-mohan/indiaruns-ranker (private) |
 | Ranked CSV | codexmohan_6487.csv (100 candidates, validated) |
-| Runtime | 57.8 seconds (spec: < 5 min) |
+| Runtime | 225.5 seconds (spec: < 5 min) |
 | Honeypots in top-100 | 0 (spec: < 10%) |
 | Deck | This document (→ PDF) |
 | Sandbox | Gradio HF Space + Docker |

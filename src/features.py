@@ -85,7 +85,7 @@ def extract(cand: dict) -> dict[str, Any]:
     signals = cand.get("redrob_signals", {})
 
     # ── basic ───────────────────────────────────────────────────────────
-    yoe = p.get("years_of_experience", 0.0)
+    reported_yoe = p.get("years_of_experience", 0.0)
     title = p.get("current_title", "").strip()
     company = p.get("current_company", "").strip()
     industry = p.get("current_industry", "").strip()
@@ -95,6 +95,31 @@ def extract(cand: dict) -> dict[str, Any]:
     headline = p.get("headline", "")
     summary = p.get("summary", "")
 
+    # ── computed YOE from career history ────────────────────────────────
+    # Trust career dates over self-reported field (handles typos like 2.9 vs 6.2).
+    # If reported > calculated: penalize proportional to sqrt of deviation.
+    _career_dates = []
+    for ch in career:
+        sd = _parse_date(ch.get("start_date"))
+        ed = _parse_date(ch.get("end_date")) or _TODAY
+        if sd:
+            _career_dates.append((sd, ed))
+    if _career_dates:
+        earliest = min(sd for sd, _ in _career_dates)
+        latest = max(ed for _, ed in _career_dates)
+        calculated_yoe = _months_between(earliest, latest) / 12.0
+    else:
+        calculated_yoe = 0.0
+
+    if calculated_yoe <= 0:
+        yoe = reported_yoe
+    elif reported_yoe <= calculated_yoe:
+        # Underreported (typo, modesty) — use the real number
+        yoe = calculated_yoe
+    else:
+        # Overreported — penalize proportional to sqrt of deviation
+        dr = reported_yoe / calculated_yoe
+        yoe = calculated_yoe * max(0.3, (1.0 / dr) ** 0.5)
     # ── yoe band score (Gaussian) ──────────────────────────────────────
     yoe_band = max(0.0, 1.0 - ((yoe - C.YOE_PEAK) / C.YOE_SIGMA) ** 2)
     # soft wings: extend band beyond strict range

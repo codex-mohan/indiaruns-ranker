@@ -14,7 +14,7 @@ The JD is intentionally adversarial. A naive keyword matcher can over-rank profi
 
 - Submission file: `codexmohan_6487.csv`
 - Official validator: passing
-- Latest full ranking run: `57.8s` on CPU, no network during ranking
+- Latest full ranking run: `225.5s` on CPU, cold start, no network during ranking
 - Latest gate result: `35,039` pass, `64,961` fail
 - Gated honeypots in top 100: `0/100`
 - Runtime constraint: under the 5-minute Stage 3 ranking limit
@@ -114,7 +114,7 @@ semantic = 0.45 * cross_encoder_normalized + 0.55 * bi_encoder_cosine
 | Lexical | TF-IDF cosine over career, skills, title, summary, and profile text | Preserves exact-match signals like FAISS, BM25, NDCG, Pinecone |
 | Skill evidence | JD taxonomy matched through proficiency, duration, and endorsements | Suppresses keyword-stuffed skills with no usage evidence |
 | Career fit | Title archetype plus eval, scale, education, certification, and company-context signals | Rewards applied ML/search/retrieval profiles over unrelated roles |
-| Experience band | Gaussian around the JD's 5-9 year preference | Favors the senior IC sweet spot without hard-rejecting edge cases |
+| Experience band | Gaussian around the JD's 5-9 year preference. YOE computed from career history dates, not self-reported field. Overreported YOE penalized proportional to sqrt of deviation. | Favors the senior IC sweet spot. Catches typos and fraud. |
 | Location | Pune/Noida/Tier-1 India preference, relocation fallback | Matches the JD logistics |
 | Behavioral | Recency, response rate, interview completion, offer acceptance, active applications, recruiter interest, GitHub, notice period | Down-weights candidates who are strong on paper but unlikely to engage. No self-reported flags — only observed behavior |
 
@@ -197,7 +197,7 @@ docker run --rm indiaruns-ranker --candidates data/sample/sample_candidates.json
 
 - The hidden ground-truth metrics cannot be verified locally because the leaderboard labels are private.
 - Local validation confirms format compliance, runtime readiness, deterministic reproduction, and no gated honeypots in the produced top 100.
-- The latest measured runtime on this machine was `57.8s`, well under the 5-minute Stage 3 limit.
+- The latest measured runtime on this machine was `225.5s` (cold start), well under the 5-minute Stage 3 limit.
 
 ## Team
 
