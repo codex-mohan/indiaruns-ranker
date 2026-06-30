@@ -78,9 +78,7 @@ def generate_reasoning(feat: dict, rank: int) -> str:
     loc_clean = loc.split(",")[0] if "," in loc else loc
 
     if rank <= 25:
-        title_display = title.lower()
-        if not title_display.startswith("senior") and not title_display.startswith("lead") and not title_display.startswith("staff") and not title_display.startswith("principal"):
-            title_display = f"senior {title_display}"
+        title_display = title
 
         templates = [
             (f"{title_display} with {yoe:.1f} yrs; {company}; "

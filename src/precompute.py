@@ -28,6 +28,14 @@ def _model_source(artifacts_dir: str, model_name: str) -> str:
     return local_dir if os.path.exists(local_dir) else model_name
 
 
+def _file_sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def run(candidates_path: str, artifacts_dir: str):
     t0 = time.time()
     os.makedirs(artifacts_dir, exist_ok=True)
@@ -120,6 +128,7 @@ def run(candidates_path: str, artifacts_dir: str):
 
     manifest = {
         "candidate_count": n,
+        "candidate_file_sha256": _file_sha256(candidates_path),
         "candidate_ids_sha256": hashlib.sha256(
             "\n".join(ids).encode("utf-8")
         ).hexdigest(),

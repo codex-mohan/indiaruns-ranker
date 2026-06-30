@@ -11,13 +11,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source
+# Pre-download models so first sandbox run doesn't wait for HuggingFace Hub
+RUN python -c "\
+from sentence_transformers import SentenceTransformer, CrossEncoder; \
+SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); \
+CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2'); \
+print('Models cached.')"
+
+# Copy source and demo assets
 COPY src/ src/
-COPY artifacts/ artifacts/
+COPY sandbox/ sandbox/
 COPY data/ data/
 
-# Default: run rank.py
-ENTRYPOINT ["python", "-m", "src.rank"]
-CMD ["--candidates", "data/sample/sample_candidates.jsonl", \
-     "--artifacts", "artifacts", \
-     "--out", "ranked.csv"]
+# Default: launch the Gradio sandbox. The sandbox auto-precomputes matching
+# artifacts for the bundled sample or uploaded JSONL, then ranks.
+CMD ["python", "sandbox/app.py"]

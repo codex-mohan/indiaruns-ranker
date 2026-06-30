@@ -1,6 +1,11 @@
 """Gradio sandbox for the INDIA RUNS candidate ranker."""
 
 from pathlib import Path
+import hashlib
+import json
+import queue
+import threading
+import logging
 import os
 import subprocess
 import sys
@@ -10,73 +15,247 @@ import time
 import gradio as gr
 import pandas as pd
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger("sandbox")
+
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-ARTIFACTS_DIR = ROOT / "artifacts"
+SANDBOX_ARTIFACTS_ROOT = ROOT / "artifacts" / "sandbox"
 SAMPLE_PATH = ROOT / "data" / "sample" / "sample_candidates.jsonl"
+REQUIRED_ARTIFACTS = ("jd_emb.npy", "cand_embs.npy", "ids.npy", "tfidf.pkl", "manifest.json")
+MAX_DEMO_CANDIDATES = int(os.getenv("MAX_DEMO_CANDIDATES", "100000"))
+KEEPALIVE_SECONDS = 5.0
 
 
-def _count_jsonl(path: Path) -> int:
+def _fmt_mb(size_bytes: int) -> str:
+    return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
+def _validate_demo_input(count: int) -> None:
+    if count > MAX_DEMO_CANDIDATES:
+        raise ValueError(
+            f"Sandbox upload has more than {MAX_DEMO_CANDIDATES} candidates. "
+            "The hosted HuggingFace demo is for small-sample reproducibility; "
+            "full 100K ranking should be run locally with `python -m src.precompute` "
+            "then `python -m src.rank`."
+        )
+
+
+def _count_jsonl(path: Path, limit: int | None = None) -> int:
+    count = 0
     with path.open("r", encoding="utf-8") as f:
-        return sum(1 for line in f if line.strip())
+        for line in f:
+            if line.strip():
+                count += 1
+                if limit is not None and count > limit:
+                    return count
+    return count
+
+
+def _candidate_file_hash(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _artifacts_ready(artifacts_dir: Path, candidates_hash: str, candidate_count: int) -> bool:
+    if any(not (artifacts_dir / name).exists() for name in REQUIRED_ARTIFACTS):
+        return False
+    try:
+        manifest = json.loads((artifacts_dir / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return (
+        manifest.get("candidate_count") == candidate_count
+        and manifest.get("candidate_file_sha256") == candidates_hash
+    )
+
+
+def _run_command(
+    cmd: list[str],
+    env: dict[str, str],
+    timeout: int,
+    label: str = "",
+    progress=None,
+    start: float = 0.0,
+    end: float = 1.0,
+) -> str:
+    log.info("Starting: %s", label)
+    log.info("  Command: %s", " ".join(cmd))
+    t0 = time.perf_counter()
+    proc = subprocess.Popen(
+        cmd,
+        cwd=str(ROOT),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    lines: list[str] = []
+    output_queue: queue.Queue[str | None] = queue.Queue()
+
+    def _reader() -> None:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            output_queue.put(line.rstrip())
+        output_queue.put(None)
+
+    reader = threading.Thread(target=_reader, daemon=True)
+    reader.start()
+    last_progress = t0
+
+    while proc.poll() is None:
+        now = time.perf_counter()
+        while True:
+            try:
+                item = output_queue.get_nowait()
+            except queue.Empty:
+                break
+            if item is None:
+                continue
+            lines.append(item)
+            if item:
+                log.info("  [%s] %s", label, item)
+        elapsed = now - t0
+        if progress is not None and now - last_progress >= KEEPALIVE_SECONDS:
+            fraction = min(end, start + (end - start) * min(elapsed / max(timeout, 1), 0.95))
+            progress(fraction, desc=f"{label}: still running ({elapsed:.0f}s elapsed)")
+            last_progress = now
+        if elapsed > timeout:
+            proc.kill()
+            raise TimeoutError(f"{label} timed out after {timeout}s")
+        time.sleep(0.5)
+
+    return_code = proc.wait(timeout=5)
+    reader.join(timeout=2)
+    while True:
+        try:
+            item = output_queue.get_nowait()
+        except queue.Empty:
+            break
+        if item is None:
+            continue
+        lines.append(item)
+        if item:
+            log.info("  [%s] %s", label, item)
+
+    elapsed = time.perf_counter() - t0
+    log.info("Finished: %s in %.1fs (exit=%d)", label, elapsed, return_code)
+    output = "\n".join(lines)
+    if return_code != 0:
+        raise RuntimeError(output[-2000:] if output else f"{label} failed (exit {return_code})")
+    return output
 
 
 def _run_ranker(candidates_path: Path, progress=gr.Progress()):
     out_path = Path(tempfile.gettempdir()) / "indiaruns_ranked_output.csv"
-    progress(0.1, desc="Loading candidate profiles")
+    started = time.perf_counter()
+
+    log.info("=== Sandbox run started ===")
+    log.info("Candidates: %s", candidates_path)
+
+    progress(0.05, desc=f"Inspecting candidate file (hosted demo limit: {MAX_DEMO_CANDIDATES} candidates)")
+
+    size_bytes = candidates_path.stat().st_size
+    count = _count_jsonl(candidates_path, limit=MAX_DEMO_CANDIDATES)
+    log.info("Candidate count: %d%s", count, "+" if count > MAX_DEMO_CANDIDATES else "")
+    log.info("Candidate file size: %s", _fmt_mb(size_bytes))
+    _validate_demo_input(count)
+    candidates_hash = _candidate_file_hash(candidates_path)
+    artifacts_dir = SANDBOX_ARTIFACTS_ROOT / candidates_hash[:16]
+    log.info("Artifacts dir: %s", artifacts_dir)
+    log.info("Artifacts exist: %s", _artifacts_ready(artifacts_dir, candidates_hash, count))
 
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONPATH"] = str(ROOT)
-    cmd = [
-        sys.executable,
-        "-m",
-        "src.rank",
-        "--candidates",
-        str(candidates_path),
-        "--artifacts",
-        str(ARTIFACTS_DIR),
-        "--out",
-        str(out_path),
-    ]
-    started = time.perf_counter()
-    result = subprocess.run(
-        cmd,
-        cwd=str(ROOT),
-        env=env,
-        text=True,
-        capture_output=True,
-        timeout=300,
-    )
-    elapsed = time.perf_counter() - started
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "Unknown ranking error").strip()
-        # Sanitize: remove absolute paths, keep error message
-        lines = detail.splitlines()
-        safe_lines = []
-        for line in lines[-20:]:  # last 20 lines only
-            if "File " in line and ("site-packages" in line or ROOT.name in line):
-                continue  # skip internal tracebacks
-            safe_lines.append(line)
-        safe_detail = "\n".join(safe_lines) if safe_lines else "Ranking failed. Check input format."
-        raise RuntimeError(safe_detail[-500:])
 
-    progress(0.9, desc="Preparing preview")
+    was_cached = _artifacts_ready(artifacts_dir, candidates_hash, count)
+    if not was_cached:
+        log.info("Precompute needed — downloading models and building index")
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        t_precompute = time.perf_counter()
+        _run_command(
+            [
+                sys.executable,
+                "-m",
+                "src.precompute",
+                "--candidates",
+                str(candidates_path),
+                "--artifacts",
+                str(artifacts_dir),
+            ],
+            env,
+            timeout=1800,
+            label="precompute",
+            progress=progress,
+            start=0.15,
+            end=0.70,
+        )
+        precompute_elapsed = time.perf_counter() - t_precompute
+        log.info("Precompute total: %.1fs", precompute_elapsed)
+        progress(0.70, desc=f"Precompute done in {precompute_elapsed:.0f}s — now ranking")
+    else:
+        log.info("Artifacts cached — skipping precompute")
+        progress(0.70, desc="Artifacts cached — ranking candidates")
+    log.info("Starting ranking")
+    t_rank = time.perf_counter()
+    progress(0.75, desc="Ranking candidates...")
+    _run_command(
+        [
+            sys.executable,
+            "-m",
+            "src.rank",
+            "--candidates",
+            str(candidates_path),
+            "--artifacts",
+            str(artifacts_dir),
+            "--out",
+            str(out_path),
+            "--allow-partial",
+        ],
+        env,
+        timeout=600,
+        label="rank",
+        progress=progress,
+        start=0.75,
+        end=0.95,
+    )
+    rank_elapsed = time.perf_counter() - t_rank
+    log.info("Ranking total: %.1fs", rank_elapsed)
+
+    elapsed = time.perf_counter() - started
+    log.info("=== Sandbox run complete in %.1fs ===", elapsed)
+
+    progress(1.0, desc=f"Done in {elapsed:.0f}s")
 
     df = pd.read_csv(out_path)
-    count = _count_jsonl(candidates_path)
+    top_score = f"{df['score'].iloc[0]:.4f}" if len(df) else "n/a"
+
+    # Build timing breakdown
+    timing_parts = [f"ranking: {rank_elapsed:.1f}s"]
+    if not was_cached:
+        timing_parts.insert(0, f"precompute: {precompute_elapsed:.1f}s")
+    timing_str = ", ".join(timing_parts)
+
+    cached_note = "reused cached artifacts" if was_cached else "first run — artifacts now cached"
+
     metrics = (
         f"### Run complete\n"
         f"- Input candidates: **{count}**\n"
         f"- Ranked output rows: **{len(df)}**\n"
-        f"- Top score: **{df['score'].iloc[0]:.4f}**\n"
-        f"- Time taken: **{elapsed:.1f}s**\n"
-        f"- Output: `{out_path}`\n\n"
-        "The sandbox uses the same deterministic ranking code as the full submission. "
-        "For demo speed, use the bundled sample or upload a small JSONL file."
+        f"- Top score: **{top_score}**\n"
+        f"- Total time: **{elapsed:.1f}s** ({timing_str})\n"
+        f"- Cache: {cached_note}\n"
+        f"- Guardrail: hosted demo accepts up to **{MAX_DEMO_CANDIDATES} candidates**; full 100K runs locally via CLI because HF free runtime can drop long uploads/precompute jobs.\n\n"
+        "Cached bundled sample runs in about **2.2s** on this Space. "
+        "Local Gradio uses this same app; for full ranking, use the CLI path without `--allow-partial`."
     )
     return str(out_path), df.head(20), metrics
 
@@ -88,8 +267,9 @@ def rank_uploaded(candidate_file, progress=gr.Progress()):
         uploaded_path = Path(candidate_file.name)
         return _run_ranker(uploaded_path, progress)
     except Exception as exc:
-        msg = str(exc)[:200]
-        return None, pd.DataFrame(), f"### Run failed\n`{msg}`"
+        msg = str(exc)
+        log.error("Run failed: %s", msg)
+        return None, pd.DataFrame(), f"### Run failed\n```\n{msg[-2000:]}\n```"
 
 
 def rank_sample(progress=gr.Progress()):
@@ -98,8 +278,9 @@ def rank_sample(progress=gr.Progress()):
             return None, pd.DataFrame(), f"### Missing sample\n`{SAMPLE_PATH}` was not found."
         return _run_ranker(SAMPLE_PATH, progress)
     except Exception as exc:
-        msg = str(exc)[:200]
-        return None, pd.DataFrame(), f"### Run failed\n`{msg}`"
+        msg = str(exc)
+        log.error("Run failed: %s", msg)
+        return None, pd.DataFrame(), f"### Run failed\n```\n{msg[-2000:]}\n```"
 
 
 THEME = gr.themes.Soft(
@@ -226,7 +407,7 @@ with gr.Blocks(title="INDIA RUNS Ranker") as app:
           </p>
           <div class="statbar">
             <div class="stat"><strong>100K</strong><span>full candidate pool</span></div>
-            <div class="stat"><strong>173s</strong><span>latest full CPU run</span></div>
+            <div class="stat"><strong>160s</strong><span>latest full CPU rank step</span></div>
             <div class="stat"><strong>0/100</strong><span>gated honeypots in top 100</span></div>
             <div class="stat"><strong>No API</strong><span>offline rank step</span></div>
           </div>
@@ -241,8 +422,15 @@ with gr.Blocks(title="INDIA RUNS Ranker") as app:
             sample_btn = gr.Button("Run Bundled Sample", variant="secondary")
             run_btn = gr.Button("Rank Uploaded File", variant="primary")
 
+    gr.Markdown(
+        "### Hosted demo warning\n"
+        "HuggingFace free/runtime may limit upload duration or drop long CPU-bound precompute jobs. "
+        "The bundled sample is the reliable demo path; if a full 100K upload times out here, "
+        "run the documented CLI workflow locally."
+    )
+
     with gr.Column(elem_classes=["output-panel"]):
-        metrics_output = gr.Markdown("### Ready\nUse the bundled sample for the fastest demo path.")
+        metrics_output = gr.Markdown("### Ready\nUse the bundled sample or upload JSONL. First run auto-precomputes local artifacts, then ranks.")
 
         with gr.Row():
             csv_output = gr.File(label="Download ranked CSV")
@@ -266,4 +454,9 @@ with gr.Blocks(title="INDIA RUNS Ranker") as app:
 
 
 if __name__ == "__main__":
-    app.launch(theme=THEME, css=CSS)
+    app.launch(
+        server_name=os.getenv("GRADIO_SERVER_NAME", "0.0.0.0"),
+        server_port=int(os.getenv("GRADIO_SERVER_PORT", "7860")),
+        theme=THEME,
+        css=CSS,
+    )

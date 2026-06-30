@@ -96,7 +96,7 @@ def _validate_inputs(candidates_path: str, artifacts_dir: str, out_path: str) ->
         raise FileNotFoundError(f"Output directory does not exist: {out_dir}")
 
 
-def run(candidates_path: str, artifacts_dir: str, out_path: str):
+def run(candidates_path: str, artifacts_dir: str, out_path: str, allow_partial: bool = False):
     t0 = time.time()
     _validate_inputs(candidates_path, artifacts_dir, out_path)
 
@@ -202,10 +202,13 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str):
         for r in top_n:
             r["final_score"] = r["score"]
 
-    # ── take top 100 from re-ranked list ───────────────────────────────
-    top100 = top_n[:100]
-    if len(top100) != 100:
+    # ── take official top 100, or a smaller top-N for sandbox demos ─────
+    top_count = min(100, len(top_n)) if allow_partial else 100
+    top100 = top_n[:top_count]
+    if len(top100) != 100 and not allow_partial:
         raise ValueError(f"Expected at least 100 gate-passed candidates, found {len(top100)}")
+    if not top100:
+        raise ValueError("No gate-passed candidates found")
 
     # ── re-sort top 100 by rounded score for correct tie-breaking ─────
     for r in top100:
@@ -230,7 +233,7 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str):
             ])
 
     total = time.time() - t0
-    print(f"\nDone. Top-100 written to {out_path}")
+    print(f"\nDone. Top-{len(top100)} written to {out_path}")
     print(f"  Total time: {total:.1f}s")
 
     # ── stats ──────────────────────────────────────────────────────────
@@ -238,7 +241,7 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str):
     gate_fail = sum(1 for r in results if r["gate"] == 0)
     honeypots_top100 = sum(1 for r in top100 if r["gate"] == 0)
     print(f"  Gate pass: {gate_pass}, fail: {gate_fail}")
-    print(f"  Honeypots in top-100: {honeypots_top100}/100")
+    print(f"  Honeypots in output: {honeypots_top100}/{len(top100)}")
     if honeypots_top100 > 10:
         print("  WARNING: honeypot rate > 10% in top-100 — submission would be DQ!")
 
@@ -248,8 +251,13 @@ def main():
     parser.add_argument("--candidates", required=True, help="Path to candidates.jsonl")
     parser.add_argument("--artifacts", default=C.ARTIFACTS_DIR, help="Artifacts dir")
     parser.add_argument("--out", required=True, help="Output CSV path")
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Allow fewer than 100 output rows for sandbox/sample demos",
+    )
     args = parser.parse_args()
-    run(args.candidates, args.artifacts, args.out)
+    run(args.candidates, args.artifacts, args.out, allow_partial=args.allow_partial)
 
 
 if __name__ == "__main__":

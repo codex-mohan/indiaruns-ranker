@@ -38,7 +38,10 @@ This stages the local Hugging Face models under `artifacts/models/`:
 
 ### Phase 1: Precompute
 
-Precompute may use network if models are not already staged. It may exceed the 5-minute ranking budget because it prepares reusable local artifacts, not the final constrained ranking run.
+Precompute is the first-time setup step. It may use network to download local
+SentenceTransformer/CrossEncoder weights and may exceed the 5-minute ranking
+budget because it prepares reusable local artifacts, not the final constrained
+ranking run.
 
 ```bash
 python -m src.precompute \
@@ -54,9 +57,12 @@ This step:
 - Saves the JD embedding, candidate embeddings, ordered candidate IDs, TF-IDF artifacts, feature JSONL, JD text, and `manifest.json`.
 - Saves both model directories under `artifacts/models/` so ranking can run offline.
 
-`manifest.json` records the candidate count and ordered candidate-ID hash. `rank.py` refuses to score if the current candidate file does not match the precomputed artifacts.
+`manifest.json` records the candidate count, candidate-file hash, and ordered
+candidate-ID hash. `rank.py` refuses to score if the current candidate file
+does not match the precomputed artifacts.
 
-Artifacts are treated as trusted, self-generated files. Do not run `src.rank` against artifact bundles from an unknown source; regenerate them with `src.precompute` when in doubt.
+Artifacts are trusted, self-generated cache files. If they are missing, stale,
+or from an unknown source, regenerate them with `src.precompute`.
 
 ### Phase 2: Rank
 
@@ -186,12 +192,40 @@ Run the Gradio sandbox locally:
 python sandbox/app.py
 ```
 
-Docker option:
+The sandbox is intentionally one-click: choose the bundled sample or upload a
+small JSONL file, and it automatically precomputes matching local artifacts
+before ranking. First run prepares embeddings/indexes; later runs reuse the
+cache under `artifacts/sandbox/`.
+
+### Hosted HuggingFace demo limits
+
+The HuggingFace Space uses the same Gradio app as local development and is
+configured to accept up to 100,000 candidates. However, HuggingFace free/runtime
+environments may restrict upload duration, CPU time, memory, or long-lived
+browser/WebSocket sessions. A full 100K upload may therefore time out or lose
+connection even though the same pipeline works locally. The hosted path is best
+for the bundled sample or smaller uploads; if the full pool times out in the
+browser, use the CLI reproduction path below.
+
+Full ranking is supported through the CLI path:
+
+```bash
+python -m src.precompute --candidates <candidates.jsonl> --artifacts ./artifacts
+python -m src.rank --candidates <candidates.jsonl> --artifacts ./artifacts --out ./codexmohan_6487.csv
+```
+
+Local Gradio uses the same `sandbox/app.py` as the hosted Space. For full
+100K ranking, prefer the CLI commands above because they are not limited by a
+browser/WebSocket session.
+
+Docker option for the Gradio sandbox:
 
 ```bash
 docker build -t indiaruns-ranker .
-docker run --rm indiaruns-ranker --candidates data/sample/sample_candidates.jsonl --out /output/ranked.csv
+docker run --rm -p 7860:7860 indiaruns-ranker
 ```
+
+Then open `http://localhost:7860`.
 
 ## Notes For Reviewers
 

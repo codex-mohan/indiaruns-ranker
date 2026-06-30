@@ -41,10 +41,13 @@ methodology_summary: |
   similarity (all-MiniLM-L6-v2), lexical TF-IDF cosine, trust-weighted skill
   evidence (defeats keyword-stuffers), career-fit scoring (title archetype +
   consulting-only disqualifier), experience band, and location preference.
-  A multiplicative behavioral envelope (open-to-work, response rate, recency,
-  interview completion) adjusts scores. A honeypot gate filters impossible
-  profiles. Reasoning is generated from real candidate fields only with three
-  tone tiers (assertive / trade-off-aware / hesitant). Runtime ~4 min on CPU
+  A multiplicative behavioral envelope using observed availability signals
+  (recruiter response rate, recency, interview completion, offer acceptance,
+  applications, recruiter saves, GitHub activity, skill assessments, salary
+  reasonableness, and notice period) adjusts scores. Self-reported open_to_work
+  is intentionally not scored. A honeypot gate filters impossible profiles.
+  Reasoning is generated from real candidate fields only with three tone tiers
+  (assertive / trade-off-aware / hesitant). Runtime ~4 min on CPU
   for 100K candidates; precompute ~20 min on GPU.
 
 declarations:
