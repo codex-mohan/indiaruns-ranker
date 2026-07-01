@@ -10,7 +10,7 @@ team_members:
     email: "codexmohan@gmail.com"
     role: "ML Engineer"
 
-github_repo: "https://github.com/codex-mohan/indiaruns-ranker"
+github_repo: "https://github.com/codex-mohan/TalentLens"
 
 sandbox_link: "https://huggingface.co/spaces/codex-mohan/indiaruns-ranker"
 
@@ -28,13 +28,15 @@ compute:
   pre_computation_time_minutes: 5
 
 ai_tools_used:
-  - "Claude"
-  - "GitHub Copilot"
+  - "opencode"
+  - "OpenAI Codex"
+  - "pi-code"
 
 ai_usage_summary: |
-  Used Claude (opencode) for architecture discussion, code review, and project scaffolding.
-  Used GitHub Copilot for autocomplete. No candidate data was fed to any LLM.
-  All scoring logic is local, deterministic, and runs without network access.
+  Used opencode, OpenAI Codex, and pi-code for architecture discussion,
+  implementation assistance, code review, and submission-readiness checks.
+  No candidate data was fed to any hosted LLM. All scoring logic is local,
+  deterministic, and runs without network access.
 
 methodology_summary: |
   Rule-grounded hybrid ranker with five scoring components: semantic embedding

@@ -1,4 +1,4 @@
-# INDIA RUNS - Intelligent Candidate Discovery & Ranking
+# TalentLens - Intelligent Candidate Discovery & Ranking
 
 > **Team:** The Monolith  
 > **Member:** Mohana Krishna  
@@ -6,7 +6,7 @@
 
 ## What This Does
 
-This project ranks 100,000 candidate profiles against the released Senior AI Engineer job description and outputs the best 100 candidates in the required CSV format.
+TalentLens ranks 100,000 candidate profiles against the released Senior AI Engineer job description and outputs the best 100 candidates in the required CSV format.
 
 The JD is intentionally adversarial. A naive keyword matcher can over-rank profiles that list AI buzzwords without real production evidence. This ranker is designed to reward actual retrieval, ranking, ML systems, product-engineering, and availability signals instead of raw keyword count.
 
@@ -221,8 +221,8 @@ browser/WebSocket session.
 Docker option for the Gradio sandbox:
 
 ```bash
-docker build -t indiaruns-ranker .
-docker run --rm -p 7860:7860 indiaruns-ranker
+docker build -t talentlens .
+docker run --rm -p 7860:7860 talentlens
 ```
 
 Then open `http://localhost:7860`.

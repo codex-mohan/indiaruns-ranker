@@ -122,15 +122,15 @@ def generate_reasoning(feat: dict, rank: int) -> str:
 
         templates = [
             (f"{title} with {yoe:.1f} yrs; {company}; "
-             f"{skill_str}{career_nugget} — but {gap}."),
+             f"{skill_str}{career_nugget} — but {gap}; {loc_clean}."),
             (f"{yoe:.1f}-yr {title.lower()} at {company}; "
-             f"surfaced for {skill_str} at {company}, but {gap}."),
+             f"surfaced for {skill_str} at {company}, but {gap}; {loc_clean}."),
             (f"{title.lower()} ({yoe:.1f} yrs) at {company}; "
-             f"strong on {skill_str} but {gap}."),
+             f"strong on {skill_str} but {gap}; {loc_clean}."),
             (f"{title} ({yoe:.1f}yr), {company}; "
              f"{skill_str} — {gap}; {loc_clean}."),
             (f"{title.lower()} at {company} ({yoe:.1f}yr); "
-             f"matched on {skill_str}{career_nugget} — {gap}."),
+             f"matched on {skill_str}{career_nugget} — {gap}; {loc_clean}."),
         ]
         return templates[h % len(templates)]
 
@@ -167,14 +167,14 @@ def generate_reasoning(feat: dict, rank: int) -> str:
 
         templates = [
             (f"Adjacent — {title.lower()} with {yoe:.1f} yrs; "
-             f"surfaced for {strength} but {concern}."),
+             f"surfaced for {strength} but {concern}; {loc_clean}."),
             (f"Below bar — {yoe:.1f}-yr {title.lower()}; "
-             f"{strength} visible, but {concern}."),
+             f"{strength} visible, but {concern}; {loc_clean}."),
             (f"{title.lower()} ({yoe:.1f} yrs); included for {strength} "
-             f"despite {concern}."),
+             f"despite {concern}; {loc_clean}."),
             (f"Fringe — {title} at {company} ({yoe:.1f}yr); "
-             f"has {strength} but {concern}."),
+             f"has {strength} but {concern}; {loc_clean}."),
             (f"Tail end — {title.lower()}, {yoe:.1f} yrs at {company}; "
-             f"weak: {concern}."),
+             f"weak: {concern}; {loc_clean}."),
         ]
         return templates[h % len(templates)]

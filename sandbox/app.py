@@ -1,4 +1,4 @@
-"""Gradio sandbox for the INDIA RUNS candidate ranker."""
+"""Gradio sandbox for TalentLens."""
 
 from pathlib import Path
 import hashlib
@@ -154,7 +154,7 @@ def _run_command(
 
 
 def _run_ranker(candidates_path: Path, progress=gr.Progress()):
-    out_path = Path(tempfile.gettempdir()) / "indiaruns_ranked_output.csv"
+    out_path = Path(tempfile.gettempdir()) / "talentlens_ranked_output.csv"
     started = time.perf_counter()
 
     log.info("=== Sandbox run started ===")
@@ -395,11 +395,11 @@ footer { display: none !important; }
 """
 
 
-with gr.Blocks(title="INDIA RUNS Ranker") as app:
+with gr.Blocks(title="TalentLens") as app:
     gr.HTML(
         """
         <section class="hero">
-          <h1>INDIA RUNS Candidate Ranker</h1>
+          <h1>TalentLens</h1>
           <p>
             A deterministic hybrid ranking system for Redrob's Senior AI Engineer challenge.
             It combines retrieval semantics, lexical evidence, skill trust, career fit,
