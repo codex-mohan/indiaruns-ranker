@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">TalentLens offline hybrid ranking architecture</title>
+  <desc id="desc">A clean technical architecture diagram showing inputs, precompute, ranking, gates, reranking, reasoning, and outputs.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2 2 L12 7 L2 12 Z" fill="#15A99B"/>
+    </marker>
+    <style>
+      .bg { fill: #F7F8FB; }
+      .panel { fill: #FFFFFF; stroke: #D9DEE8; stroke-width: 2; }
+      .dark { fill: #111827; }
+      .title { font: 800 40px Aptos Display, Segoe UI, Arial, sans-serif; fill: #121A2A; }
+      .subtitle { font: 500 20px Aptos, Segoe UI, Arial, sans-serif; fill: #657084; }
+      .label { font: 750 24px Aptos, Segoe UI, Arial, sans-serif; fill: #121A2A; }
+      .small { font: 500 17px Aptos, Segoe UI, Arial, sans-serif; fill: #566274; }
+      .mono { font: 650 16px Consolas, Cascadia Mono, monospace; fill: #223046; }
+      .white { fill: #FFFFFF; }
+      .badgeText { font: 700 15px Aptos, Segoe UI, Arial, sans-serif; fill: #FFFFFF; }
+      .teal { fill: #15A99B; }
+      .purple { fill: #5B3DF2; }
+      .amber { fill: #F5B544; }
+      .line { fill: none; stroke: #15A99B; stroke-width: 4; marker-end: url(#arrow); }
+      .thin { fill: none; stroke: #C8D0DD; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="900"/>
+  <rect x="64" y="48" width="1472" height="804" rx="28" class="panel"/>
+
+  <g transform="translate(104 86)">
+    <circle cx="36" cy="36" r="28" fill="#111827"/>
+    <circle cx="32" cy="32" r="15" fill="none" stroke="#15A99B" stroke-width="6"/>
+    <path d="M44 44 L58 58" stroke="#15A99B" stroke-width="7" stroke-linecap="round"/>
+    <text x="84" y="34" class="title">TalentLens Architecture</text>
+    <text x="86" y="66" class="subtitle">Offline hybrid ranking pipeline for Senior AI Engineer discovery</text>
+  </g>
+
+  <g transform="translate(100 190)">
+    <rect x="0" y="0" width="280" height="486" rx="18" class="panel"/>
+    <text x="28" y="48" class="label">Inputs</text>
+    <path d="M28 74 H252" class="thin"/>
+    <g transform="translate(28 112)">
+      <rect x="0" y="0" width="224" height="72" rx="14" fill="#EEF8F7" stroke="#BDE9E3"/>
+      <text x="22" y="30" class="mono">job_description</text>
+      <text x="22" y="54" class="small">Senior AI Engineer JD</text>
+    </g>
+    <g transform="translate(28 210)">
+      <rect x="0" y="0" width="224" height="72" rx="14" fill="#F2F0FF" stroke="#D4CCFF"/>
+      <text x="22" y="30" class="mono">candidates.jsonl</text>
+      <text x="22" y="54" class="small">100,000 profiles</text>
+    </g>
+    <g transform="translate(28 308)">
+      <rect x="0" y="0" width="224" height="72" rx="14" fill="#FFF8E8" stroke="#F5D58F"/>
+      <text x="22" y="30" class="mono">redrob_signals</text>
+      <text x="22" y="54" class="small">behavior + availability</text>
+    </g>
+  </g>
+
+  <g transform="translate(470 178)">
+    <rect x="0" y="0" width="350" height="224" rx="18" class="panel"/>
+    <text x="28" y="48" class="label">Precompute</text>
+    <path d="M28 74 H322" class="thin"/>
+    <text x="28" y="112" class="small">Extract career, skill, education,</text>
+    <text x="28" y="138" class="small">location, and behavior features</text>
+    <text x="28" y="174" class="small">Build MiniLM embeddings + TF-IDF</text>
+    <text x="28" y="200" class="small">Save manifest-bound artifacts</text>
+  </g>
+
+  <g transform="translate(470 452)">
+    <rect x="0" y="0" width="350" height="224" rx="18" class="panel"/>
+    <text x="28" y="48" class="label">Artifact Contract</text>
+    <path d="M28 74 H322" class="thin"/>
+    <text x="28" y="112" class="small">Candidate file hash</text>
+    <text x="28" y="140" class="small">Ordered candidate ID hash</text>
+    <text x="28" y="168" class="small">JD text + cached local models</text>
+    <text x="28" y="196" class="small">Fatal fail on stale mismatch</text>
+  </g>
+
+  <g transform="translate(910 116)">
+    <rect x="0" y="0" width="390" height="628" rx="22" fill="#111827"/>
+    <text x="30" y="54" font-family="Aptos Display, Segoe UI, Arial, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF">Ranking Engine</text>
+    <text x="30" y="84" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="17" font-weight="500" fill="#A8B3C7">CPU, offline, deterministic</text>
+    <g transform="translate(30 124)">
+      <rect x="0" y="0" width="330" height="62" rx="12" fill="#1D293B"/>
+      <circle cx="30" cy="31" r="11" class="amber"/>
+      <text x="58" y="26" class="white" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="18" font-weight="750">Gate</text>
+      <text x="58" y="48" fill="#CBD5E1" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="14">honeypots + hard disqualifiers</text>
+    </g>
+    <g transform="translate(30 216)">
+      <rect x="0" y="0" width="330" height="72" rx="12" fill="#1D293B"/>
+      <text x="24" y="30" class="white" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="18" font-weight="750">Hybrid score</text>
+      <text x="24" y="54" fill="#CBD5E1" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="14">semantic + lexical + skills + career</text>
+    </g>
+    <g transform="translate(30 318)">
+      <rect x="0" y="0" width="330" height="72" rx="12" fill="#1D293B"/>
+      <text x="24" y="30" class="white" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="18" font-weight="750">Behavior multiplier</text>
+      <text x="24" y="54" fill="#CBD5E1" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="14">recency, reply rate, interviews, notice</text>
+    </g>
+    <g transform="translate(30 420)">
+      <rect x="0" y="0" width="330" height="72" rx="12" fill="#1D293B"/>
+      <text x="24" y="30" class="white" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="18" font-weight="750">Cross-encoder rerank</text>
+      <text x="24" y="54" fill="#CBD5E1" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="14">top 1,000 corrective semantic pass</text>
+    </g>
+    <g transform="translate(30 522)">
+      <rect x="0" y="0" width="330" height="72" rx="12" fill="#1D293B"/>
+      <text x="24" y="30" class="white" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="18" font-weight="750">Reasoning</text>
+      <text x="24" y="54" fill="#CBD5E1" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="14">field-grounded, no LLM at rank time</text>
+    </g>
+  </g>
+
+  <g transform="translate(1376 190)">
+    <rect x="0" y="0" width="124" height="486" rx="18" class="panel"/>
+    <text x="20" y="48" class="label">Output</text>
+    <path d="M20 74 H104" class="thin"/>
+    <rect x="20" y="116" width="84" height="72" rx="12" fill="#EEF8F7" stroke="#BDE9E3"/>
+    <text x="35" y="146" class="mono">CSV</text>
+    <text x="34" y="168" class="small">top 100</text>
+    <rect x="20" y="222" width="84" height="72" rx="12" fill="#F2F0FF" stroke="#D4CCFF"/>
+    <text x="32" y="252" class="mono">rank</text>
+    <text x="28" y="274" class="small">score</text>
+    <rect x="20" y="328" width="84" height="72" rx="12" fill="#FFF8E8" stroke="#F5D58F"/>
+    <text x="28" y="358" class="mono">why</text>
+    <text x="24" y="380" class="small">reason</text>
+  </g>
+
+  <path d="M380 430 C420 430, 430 290, 470 290" class="line"/>
+  <path d="M380 430 C420 430, 430 560, 470 560" class="line"/>
+  <path d="M820 290 C865 290, 865 238, 910 238" class="line"/>
+  <path d="M820 560 C865 560, 865 238, 910 238" class="line"/>
+  <path d="M1300 430 C1336 430, 1340 430, 1376 430" class="line"/>
+
+  <g transform="translate(104 770)">
+    <rect x="0" y="0" width="178" height="40" rx="20" fill="#111827"/>
+    <text x="29" y="26" class="badgeText">100K candidates</text>
+    <rect x="200" y="0" width="148" height="40" rx="20" fill="#15A99B"/>
+    <text x="229" y="26" class="badgeText">120.9s CLI</text>
+    <rect x="370" y="0" width="246" height="40" rx="20" fill="#5B3DF2"/>
+    <text x="403" y="26" class="badgeText">183.7s full Gradio run</text>
+    <rect x="638" y="0" width="124" height="40" rx="20" fill="#F5B544"/>
+    <text x="665" y="26" fill="#1E293B" font-family="Aptos, Segoe UI, Arial, sans-serif" font-size="15" font-weight="800">0/100 gated</text>
+    <rect x="784" y="0" width="130" height="40" rx="20" fill="#111827"/>
+    <text x="815" y="26" class="badgeText">No API</text>
+  </g>
+</svg>

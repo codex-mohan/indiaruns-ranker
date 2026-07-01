@@ -1,9 +1,12 @@
 """Compare old (bi-encoder only) vs new (cross-encoder) ranking."""
-import csv, subprocess, os, tempfile
+import csv
+from pathlib import Path
+import subprocess
+import tempfile
 
 # Extract old CSV from git
-repo = r"C:\Users\wwwmo\Development\Competitions\IndiaRuns\indiaruns-ranker"
-old_path = os.path.join(tempfile.gettempdir(), "old_ranking.csv")
+repo = Path(__file__).resolve().parents[1]
+old_path = Path(tempfile.gettempdir()) / "old_ranking.csv"
 result = subprocess.run(
     ["git", "show", "6095b07:codexmohan_6487.csv"],
     capture_output=True, text=True, cwd=repo
@@ -24,7 +27,7 @@ def load_csv(path):
     return data
 
 old = load_csv(old_path)
-new = load_csv(os.path.join(repo, "codexmohan_6487.csv"))
+new = load_csv(repo / "codexmohan_6487.csv")
 
 old_ids = set(old.keys())
 new_ids = set(new.keys())

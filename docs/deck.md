@@ -1,10 +1,10 @@
-# INDIA RUNS — Candidate Ranking System
+# TalentLens - Candidate Ranking System
 ## Team: The Monolith | Mohana Krishna
 
 ---
 
 ## Slide 1: Title
-**INDIA RUNS — Intelligent Candidate Discovery & Ranking**
+**TalentLens - Intelligent Candidate Discovery & Ranking**
 Redrob AI Hiring Challenge
 
 Team: The Monolith | Mohana Krishna | codexmohan@gmail.com
@@ -169,7 +169,7 @@ Encodes 100K candidates, builds TF-IDF index, saves model caches for offline ran
 
 | Artifact | Status |
 |---|---|
-| GitHub repo | codex-mohan/indiaruns-ranker (private) |
+| GitHub repo | codex-mohan/TalentLens (private) |
 | Ranked CSV | codexmohan_6487.csv (100 candidates, validated) |
 | Runtime | 120.9 seconds (spec: < 5 min) |
 | Honeypots in top-100 | 0 (spec: < 10%) |

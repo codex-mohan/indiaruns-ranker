@@ -1,4 +1,4 @@
-# AGENTS.md — indiaruns-ranker
+# AGENTS.md — TalentLens
 
 > Read this before touching anything. It's the contract that keeps the project
 > coherent across sessions.
@@ -12,7 +12,7 @@ hand-written job description and produce the top-100 in a submission CSV.
 - **Team**: The Monolith
 - **Owner**: Mohana Krishna (Vellore, Tamil Nadu, India)
 - **Contact**: 6381131277 · codexmohan@gmail.com
-- **GitHub**: @codex-mohan  (repo will be `indiaruns-ranker`)
+- **GitHub**: @codex-mohan  (`codex-mohan/TalentLens`)
 - **Participant ID for CSV filename**: `codexmohan_6487`  → CSV = `codexmohan_6487.csv`
 
 ## 2. The dataset (do NOT modify, do NOT commit raw)
@@ -208,7 +208,7 @@ python sandbox/app.py
 - [ ] sandbox/app.py + Dockerfile
 - [ ] README.md + submission_metadata.yaml
 - [ ] docs/deck.md
-- [ ] Commit + push to github.com/codex-mohan/indiaruns-ranker
+- [ ] Commit + push to github.com/codex-mohan/TalentLens
 
 ## 10. Conventions for any future session
 

@@ -1,1 +1,1 @@
-"""indiaruns-ranker source package."""
+"""TalentLens source package."""

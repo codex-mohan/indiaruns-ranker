@@ -45,7 +45,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; }
 
 html = f"""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><title>INDIA RUNS — Candidate Ranking System</title><style>{css}</style></head>
+<head><meta charset="utf-8"><title>TalentLens - Candidate Ranking System</title><style>{css}</style></head>
 <body>
 {''.join(slides_html)}
 </body></html>"""
