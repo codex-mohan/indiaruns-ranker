@@ -1,5 +1,9 @@
 # TalentLens - Intelligent Candidate Discovery & Ranking
 
+<p align="center">
+  <img src="docs/assets/talentlens-logo-gpt.png" alt="TalentLens logo" width="420">
+</p>
+
 > **Team:** The Monolith  
 > **Member:** Mohana Krishna  
 > **Challenge:** Redrob AI Hiring Challenge - INDIA RUNS
