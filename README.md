@@ -28,6 +28,14 @@ The JD is intentionally adversarial. A naive keyword matcher can over-rank profi
 Use Python 3.11 or 3.12. Do not use a global Python 3.13 install for local
 development; the ML dependencies are pinned for the project environment.
 
+This repo uses **Git LFS** for large precomputed artifacts. After cloning,
+ensure LFS files are pulled:
+
+```bash
+git lfs install
+git clone https://github.com/codex-mohan/TalentLens.git
+cd TalentLens/indiaruns-ranker
+```
 ### Recommended: uv
 
 ```bash
