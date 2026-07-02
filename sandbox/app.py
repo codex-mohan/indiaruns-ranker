@@ -398,7 +398,7 @@ footer { display: none !important; }
 """
 
 
-with gr.Blocks(title="TalentLens") as app:
+with gr.Blocks(title="TalentLens", theme=THEME, css=CSS) as app:
     gr.HTML(
         """
         <section class="hero">
@@ -456,10 +456,12 @@ with gr.Blocks(title="TalentLens") as app:
     )
 
 
-if __name__ == "__main__":
+def launch_app() -> None:
     app.launch(
         server_name=os.getenv("GRADIO_SERVER_NAME", "0.0.0.0"),
         server_port=int(os.getenv("GRADIO_SERVER_PORT", "7860")),
-        theme=THEME,
-        css=CSS,
     )
+
+
+if __name__ == "__main__":
+    launch_app()
