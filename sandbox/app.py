@@ -96,6 +96,8 @@ def _run_command(
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
+        encoding="utf-8",
+        errors="replace",
     )
     lines: list[str] = []
     output_queue: queue.Queue[str | None] = queue.Queue()
@@ -173,7 +175,8 @@ def _run_ranker(candidates_path: Path, progress=gr.Progress()):
     log.info("Artifacts exist: %s", _artifacts_ready(artifacts_dir, candidates_hash, count))
 
     env = os.environ.copy()
-    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONIOENCODING"] = "utf-8:replace"
+    env["PYTHONUTF8"] = "1"
     env["PYTHONPATH"] = str(ROOT)
 
     was_cached = _artifacts_ready(artifacts_dir, candidates_hash, count)

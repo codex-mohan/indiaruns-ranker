@@ -23,17 +23,49 @@ The JD is intentionally adversarial. A naive keyword matcher can over-rank profi
 - Gated honeypots in top 100: `0/100`
 - Runtime constraint: under the 5-minute Stage 3 ranking limit
 
+## Installation
+
+Use Python 3.11 or 3.12. Do not use a global Python 3.13 install for local
+development; the ML dependencies are pinned for the project environment.
+
+### Recommended: uv
+
+```bash
+uv python install 3.11
+uv sync --extra sandbox --extra dev
+```
+
+Run commands through `uv run` so they use `.venv`:
+
+```bash
+uv run python sandbox/app.py
+```
+
+### Standard venv + pip
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+After activation, normal `python ...` commands use the project venv.
+
 ## How It Works
 
 The system is a two-phase hybrid ranker. Model download/precompute are setup steps; only `src.rank` is the constrained no-network ranking step.
 
 ### Optional Setup: Download Model Weights
 
-Run this on a machine with network access before the no-network ranking step:
+Run this on a machine with network access before the no-network ranking step.
+With `uv`:
 
 ```bash
-python scripts/download_models.py --artifacts ./artifacts
+uv run python scripts/download_models.py --artifacts ./artifacts
 ```
+
+With an activated `.venv`, use the same command without `uv run`.
 
 This stages the local Hugging Face models under `artifacts/models/`:
 
@@ -48,10 +80,12 @@ budget because it prepares reusable local artifacts, not the final constrained
 ranking run.
 
 ```bash
-python -m src.precompute \
+uv run python -m src.precompute \
   --candidates ../data/India_runs_data_and_ai_challenge/candidates.jsonl \
   --artifacts ./artifacts
 ```
+
+With an activated `.venv`, use `python -m src.precompute ...`.
 
 This step:
 
@@ -73,11 +107,13 @@ or from an unknown source, regenerate them with `src.precompute`.
 Ranking is the constrained reproduction step: CPU only, no hosted APIs, no network required when artifacts are present. It requires the cross-encoder model directory produced by `scripts/download_models.py` or `src.precompute`; missing model/artifact files are fatal because fallback ranking would not reproduce the submitted CSV.
 
 ```bash
-python -m src.rank \
+uv run python -m src.rank \
   --candidates ../data/India_runs_data_and_ai_challenge/candidates.jsonl \
   --artifacts ./artifacts \
   --out ./codexmohan_6487.csv
 ```
+
+With an activated `.venv`, use `python -m src.rank ...`.
 
 This step:
 
@@ -92,7 +128,7 @@ This step:
 ### Validate
 
 ```bash
-python ../data/India_runs_data_and_ai_challenge/validate_submission.py ./codexmohan_6487.csv
+uv run python ../data/India_runs_data_and_ai_challenge/validate_submission.py ./codexmohan_6487.csv
 ```
 
 ## Scoring Formula
@@ -190,7 +226,16 @@ indiaruns-ranker/
 
 ## Sandbox
 
-Run the Gradio sandbox locally:
+Use the project environment from [Installation](#installation).
+
+With `uv`:
+
+```bash
+uv sync --extra sandbox --extra dev
+uv run python sandbox/app.py
+```
+
+With an activated `.venv`:
 
 ```bash
 python sandbox/app.py
@@ -214,9 +259,11 @@ browser, use the CLI reproduction path below.
 Full ranking is supported through the CLI path:
 
 ```bash
-python -m src.precompute --candidates <candidates.jsonl> --artifacts ./artifacts
-python -m src.rank --candidates <candidates.jsonl> --artifacts ./artifacts --out ./codexmohan_6487.csv
+uv run python -m src.precompute --candidates <candidates.jsonl> --artifacts ./artifacts
+uv run python -m src.rank --candidates <candidates.jsonl> --artifacts ./artifacts --out ./codexmohan_6487.csv
 ```
+
+With an activated `.venv`, remove `uv run` from those commands.
 
 Local Gradio uses the same `sandbox/app.py` as the hosted Space. For full
 100K ranking, prefer the CLI commands above because they are not limited by a
