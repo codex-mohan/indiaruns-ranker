@@ -26,7 +26,12 @@ def _model_dir(artifacts_dir: str, model_name: str) -> str:
 
 def _model_source(artifacts_dir: str, model_name: str) -> str:
     local_dir = _model_dir(artifacts_dir, model_name)
-    return local_dir if os.path.exists(local_dir) else model_name
+    pytorch_weights = (
+        os.path.exists(os.path.join(local_dir, "pytorch_model.bin"))
+        or os.path.exists(os.path.join(local_dir, "model.safetensors"))
+        or os.path.exists(os.path.join(local_dir, "model.safetensors.index.json"))
+    )
+    return local_dir if pytorch_weights else model_name
 
 
 def _file_sha256(path: str) -> str:
