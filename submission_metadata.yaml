@@ -50,7 +50,7 @@ methodology_summary: |
   is intentionally not scored. A honeypot gate filters impossible profiles.
   Reasoning is generated from real candidate fields only with three tone tiers
   (assertive / trade-off-aware / hesitant). Runtime ~4 min on CPU
-  for 100K candidates; precompute ~20 min on GPU.
+  for 100K candidates; local GPU precompute usually completes in seconds.
 
 declarations:
   read_submission_spec: true

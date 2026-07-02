@@ -84,9 +84,12 @@ This stages the local Hugging Face models under `artifacts/models/`:
 ### Phase 1: Precompute
 
 Precompute is the first-time setup step. It may use network to download local
-SentenceTransformer/CrossEncoder weights and may exceed the 5-minute ranking
-budget because it prepares reusable local artifacts, not the final constrained
-ranking run.
+SentenceTransformer/CrossEncoder weights and is **not** bound by the 5-minute
+ranking budget. On CPU, candidate embedding can take roughly **25-40 minutes**
+for the full 100K dataset depending on backend, batch size, and CPU. On a local
+GPU-capable global Python install it typically completes in seconds.
+This is allowed by the competition spec: only the later `src.rank` step must
+finish within the 5-minute CPU/no-network budget.
 
 Default PyTorch CPU backend:
 
@@ -133,11 +136,18 @@ Backend notes:
 - `openvino-int8`: static INT8 OpenVINO path. It can be fast on Intel CPUs but requires the `datasets` dependency because SentenceTransformers/Optimum uses a calibration dataset during export.
 
 Local CUDA/global Python path, if your global `python` has CUDA Torch and you
-are doing a local speed run rather than CPU-only reproduction:
+want to build artifacts quickly. Do **not** use `uv` for this path if the `uv`
+environment is CPU-only.
 
 ```bash
-python -m src.precompute --candidates ..\data\India_runs_data_and_ai_challenge\candidates.jsonl --artifacts .\artifacts
+python -m src.precompute --candidates ..\data\India_runs_data_and_ai_challenge\candidates.jsonl --artifacts .\artifacts --embed-batch-size 512 --feature-workers 16
 python -m src.rank --candidates ..\data\India_runs_data_and_ai_challenge\candidates.jsonl --artifacts .\artifacts --out .\codexmohan_6487_global_cuda.csv
+```
+
+To confirm the global Python has CUDA before running precompute:
+
+```bash
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.version.cuda)"
 ```
 
 This step:
