@@ -1,0 +1,4 @@
+artifacts/*.pkl filter=lfs diff=lfs merge=lfs -text
+artifacts/*.jsonl filter=lfs diff=lfs merge=lfs -text
+artifacts/models/cross-encoder_ms-marco-MiniLM-L-6-v2/** filter=lfs diff=lfs merge=lfs -text
+artifacts/*.npy filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,15 @@
+{
+  "candidate_count": 100000,
+  "candidate_embedding_shape": [
+    100000,
+    384
+  ],
+  "candidate_file_sha256": "de7b8cae39a9f9378a2cd4f8153bfc1f84960bce0ae520f263423d129df4b335",
+  "candidate_ids_sha256": "316d08c541414c244f641dfe5fef85fc469cba650e27f96e0c209914c939d46a",
+  "cross_encoder_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "tfidf_shape": [
+    100000,
+    8000
+  ]
+}

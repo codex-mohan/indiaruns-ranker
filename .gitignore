@@ -1,7 +1,6 @@
 __pycache__/
 *.pyc
 *.pyo
-artifacts/
 *.egg-info/
 dist/
 build/
@@ -9,4 +8,15 @@ build/
 .pytest_cache/
 .env
 *.log
-models/
+
+# Large artifacts - tracked via LFS selectively
+artifacts/models/sentence-transformers_all-MiniLM-L6-v2/
+artifacts/sandbox/
+artifacts/sandbox_backup*/
+artifacts/grid_search/
+artifacts/smoke*/
+artifacts/tfidf.npz
+codexmohan_6487.xlsx
+codexmohan_6487_global_python.csv
+codexmohan_6487_2.csv
+.venv/
