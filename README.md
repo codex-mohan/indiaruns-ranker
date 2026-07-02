@@ -235,7 +235,7 @@ semantic = 0.45 * cross_encoder_normalized + 0.55 * bi_encoder_cosine
 | Career fit | Title archetype plus eval, scale, education, certification, and company-context signals | Rewards applied ML/search/retrieval profiles over unrelated roles |
 | Experience band | Gaussian around the JD's 5-9 year preference. YOE computed from career history dates, not self-reported field. Overreported YOE penalized proportional to sqrt of deviation. | Favors the senior IC sweet spot. Catches typos and fraud. |
 | Location | Pune/Noida/Tier-1 India preference, relocation fallback | Matches the JD logistics |
-| Behavioral | Recency, response rate, interview completion, offer acceptance, active applications, recruiter interest, GitHub, notice period | Down-weights candidates who are strong on paper but unlikely to engage. No self-reported flags — only observed behavior |
+| Behavioral | Recency, response rate, interview completion, offer acceptance, active applications, recruiter interest, GitHub, notice period, skill assessment average, salary reasonableness | Down-weights candidates who are strong on paper but unlikely to engage. No self-reported flags — only observed behavior |
 
 ## Honeypot And Gate Logic
 
@@ -285,6 +285,7 @@ indiaruns-ranker/
     reasoning.py       - deterministic factual reasonings
     precompute.py      - offline artifact builder
     rank.py            - constrained ranking entry point
+    rerank.py          - cross-encoder re-ranking helper
   data/
     sample/            - small sample for sandbox use
     job_description.md - local JD copy when available
