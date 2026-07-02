@@ -4,13 +4,14 @@ Builds embeddings, TF-IDF index, feature vectors, and JD embedding.
 Run this once (may exceed 5 min, may use network to fetch model).
 """
 import argparse
+from concurrent.futures import ProcessPoolExecutor
 import hashlib
-import json
 import os
 import pickle
 import time
 
 import numpy as np
+import orjson
 
 from . import config as C
 from .io import stream_candidates
@@ -36,7 +37,33 @@ def _file_sha256(path: str) -> str:
     return digest.hexdigest()
 
 
-def run(candidates_path: str, artifacts_dir: str):
+def _default_workers() -> int:
+    return max(1, os.cpu_count() or 1)
+
+
+def _extract_features(candidates: list[dict], workers: int | None) -> list[dict]:
+    worker_count = _default_workers() if workers is None else workers
+    if workers is not None and workers < 1:
+        raise ValueError("--feature-workers must be >= 1")
+    if worker_count == 1 or len(candidates) < 1000:
+        return [extract(c) for c in candidates]
+
+    chunksize = max(1, len(candidates) // (worker_count * 16))
+    print(f"  Using {worker_count} feature workers (chunksize={chunksize})")
+    with ProcessPoolExecutor(max_workers=worker_count) as pool:
+        return list(pool.map(extract, candidates, chunksize=chunksize))
+
+
+def run(
+    candidates_path: str,
+    artifacts_dir: str,
+    embed_batch_size: int = 512,
+    feature_workers: int | None = None,
+    embed_backend: str = "torch",
+    onnx_quantization: str = "avx2",
+):
+    if embed_batch_size < 1:
+        raise ValueError("--embed-batch-size must be >= 1")
     t0 = time.time()
     os.makedirs(artifacts_dir, exist_ok=True)
     if not os.path.exists(candidates_path):
@@ -57,7 +84,7 @@ def run(candidates_path: str, artifacts_dir: str):
     # ── extract features ───────────────────────────────────────────────
     t1 = time.time()
     print("Extracting features...")
-    feats = [extract(c) for c in candidates]
+    feats = _extract_features(candidates, feature_workers)
     print(f"  Features extracted in {time.time()-t1:.1f}s")
 
     # ── build text blobs ───────────────────────────────────────────────
@@ -79,13 +106,18 @@ def run(candidates_path: str, artifacts_dir: str):
     else:
         with open(jd_text_path, "r", encoding="utf-8") as f:
             jd_text = f.read()
-
     # ── embeddings ─────────────────────────────────────────────────────
     t2 = time.time()
     print("Loading embedding model...")
-    model_source = _model_source(artifacts_dir, C.EMBED_MODEL)
-    model = load_model(model_source)
-    print(f"  Model loaded from {model_source} in {time.time()-t2:.1f}s")
+    model_dir = _model_dir(artifacts_dir, C.EMBED_MODEL)
+    model_source = _model_source(artifacts_dir, C.EMBED_MODEL) if embed_backend == "torch" else C.EMBED_MODEL
+    model = load_model(
+        model_source,
+        backend=embed_backend,
+        model_dir=model_dir,
+        quantization=onnx_quantization,
+    )
+    print(f"  Model loaded from {model_source} with {embed_backend} in {time.time()-t2:.1f}s")
 
     t3 = time.time()
     print("Encoding JD...")
@@ -94,7 +126,7 @@ def run(candidates_path: str, artifacts_dir: str):
 
     t4 = time.time()
     print(f"Encoding {n} candidates...")
-    cand_embs = encode_texts(model, text_blobs, batch_size=512)
+    cand_embs = encode_texts(model, text_blobs, batch_size=embed_batch_size)
     print(f"  Candidates encoded in {time.time()-t4:.1f}s")
 
     # ── save embeddings ────────────────────────────────────────────────
@@ -102,9 +134,9 @@ def run(candidates_path: str, artifacts_dir: str):
     np.save(os.path.join(artifacts_dir, "cand_embs.npy"), cand_embs)
 
     # ── save model weights for offline Stage 3 ────────────────────────
-    model_dir = _model_dir(artifacts_dir, C.EMBED_MODEL)
-    os.makedirs(model_dir, exist_ok=True)
-    model.save(model_dir)
+    if embed_backend == "torch":
+        os.makedirs(model_dir, exist_ok=True)
+        model.save(model_dir)
     print(f"  Model saved to {model_dir}")
 
     # ── TF-IDF index ───────────────────────────────────────────────────
@@ -117,11 +149,10 @@ def run(candidates_path: str, artifacts_dir: str):
 
     # ── save feature data as JSONL ─────────────────────────────────────
     feat_path = os.path.join(artifacts_dir, "features.jsonl")
-    with open(feat_path, "w", encoding="utf-8") as f:
+    with open(feat_path, "wb") as f:
         for feat in feats:
-            # Convert any non-serializable types
-            row = {k: v for k, v in feat.items()}
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            f.write(orjson.dumps(feat))
+            f.write(b"\n")
 
     # ── save IDs ───────────────────────────────────────────────────────
     np.save(os.path.join(artifacts_dir, "ids.npy"), np.array(ids))
@@ -137,8 +168,8 @@ def run(candidates_path: str, artifacts_dir: str):
         "candidate_embedding_shape": list(cand_embs.shape),
         "tfidf_shape": list(matrix.shape),
     }
-    with open(os.path.join(artifacts_dir, "manifest.json"), "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2, sort_keys=True)
+    with open(os.path.join(artifacts_dir, "manifest.json"), "wb") as f:
+        f.write(orjson.dumps(manifest, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS))
 
     # ── save JD text ───────────────────────────────────────────────────
     with open(jd_text_path, "w", encoding="utf-8") as f:
@@ -167,8 +198,39 @@ def main():
     parser = argparse.ArgumentParser(description="Precompute artifacts")
     parser.add_argument("--candidates", required=True, help="Path to candidates.jsonl")
     parser.add_argument("--artifacts", default=C.ARTIFACTS_DIR, help="Artifacts output dir")
+    parser.add_argument(
+        "--embed-batch-size",
+        type=int,
+        default=512,
+        help="SentenceTransformer encode batch size for candidate embeddings",
+    )
+    parser.add_argument(
+        "--embed-backend",
+        choices=["torch", "onnx-int8", "openvino", "openvino-int8"],
+        default="torch",
+        help="Embedding inference backend. Use onnx-int8/openvino-int8 for optimized CPU precompute.",
+    )
+    parser.add_argument(
+        "--onnx-quantization",
+        choices=["arm64", "avx2", "avx512", "avx512_vnni"],
+        default="avx2",
+        help="ONNX dynamic quantization target for --embed-backend onnx-int8",
+    )
+    parser.add_argument(
+        "--feature-workers",
+        type=int,
+        default=None,
+        help="Parallel feature extraction workers; default uses all logical CPUs",
+    )
     args = parser.parse_args()
-    run(args.candidates, args.artifacts)
+    run(
+        args.candidates,
+        args.artifacts,
+        embed_batch_size=args.embed_batch_size,
+        feature_workers=args.feature_workers,
+        embed_backend=args.embed_backend,
+        onnx_quantization=args.onnx_quantization,
+    )
 
 
 if __name__ == "__main__":

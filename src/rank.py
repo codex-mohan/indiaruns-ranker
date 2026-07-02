@@ -6,7 +6,7 @@ Must run < 5 min on CPU, no network.
 import argparse
 import csv
 import hashlib
-import json
+import orjson
 import os
 import pickle
 import time
@@ -14,8 +14,6 @@ import time
 import numpy as np
 
 from . import config as C
-from .io import stream_candidates
-from .features import extract
 from .semantic import cosine_scores
 from .sparse import lexical_scores
 from .honeypot import gate, hard_disqualifier
@@ -34,14 +32,38 @@ def _ids_sha256(ids: list[str]) -> str:
     return hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest()
 
 
+def _file_sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _load_feature_artifacts(artifacts_dir: str) -> list[dict]:
+    feat_path = os.path.join(artifacts_dir, "features.jsonl")
+    feats = []
+    with open(feat_path, "rb") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                feats.append(orjson.loads(line))
+            except orjson.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON in {feat_path} at line {line_no}: {exc}") from exc
+    return feats
+
+
 def _validate_artifacts(
     artifacts_dir: str,
     ids: np.ndarray,
     cand_embs: np.ndarray,
     matrix,
     feats: list[dict],
+    candidate_file_sha256: str | None = None,
 ) -> None:
-    """Fail fast when precomputed artifacts do not match the candidate stream."""
+    """Fail fast when precomputed artifacts do not match the candidate file."""
     artifact_ids = [str(x) for x in ids.tolist()]
     candidate_ids = [f["candidate_id"] for f in feats]
 
@@ -71,8 +93,8 @@ def _validate_artifacts(
 
     manifest_path = os.path.join(artifacts_dir, "manifest.json")
     if os.path.exists(manifest_path):
-        with open(manifest_path, "r", encoding="utf-8") as f:
-            manifest = json.load(f)
+        with open(manifest_path, "rb") as f:
+            manifest = orjson.loads(f.read())
         expected_count = manifest.get("candidate_count")
         if expected_count != len(candidate_ids):
             raise ValueError(
@@ -84,6 +106,9 @@ def _validate_artifacts(
         if expected_hash != actual_hash:
             raise ValueError("manifest candidate_ids_sha256 does not match candidate file")
 
+        expected_file_hash = manifest.get("candidate_file_sha256")
+        if expected_file_hash != candidate_file_sha256:
+            raise ValueError("manifest candidate_file_sha256 does not match candidate file")
 
 def _validate_inputs(candidates_path: str, artifacts_dir: str, out_path: str) -> None:
     """Fail fast on bad inputs before doing any expensive work."""
@@ -101,7 +126,7 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str, allow_partial: 
     _validate_inputs(candidates_path, artifacts_dir, out_path)
 
     # ── check artifacts exist ───────────────────────────────────────────
-    required = ["jd_emb.npy", "cand_embs.npy", "ids.npy", "tfidf.pkl"]
+    required = ["jd_emb.npy", "cand_embs.npy", "ids.npy", "tfidf.pkl", "features.jsonl", "manifest.json"]
     missing = [f for f in required if not os.path.exists(os.path.join(artifacts_dir, f))]
     if missing:
         raise FileNotFoundError(
@@ -117,15 +142,21 @@ def run(candidates_path: str, artifacts_dir: str, out_path: str, allow_partial: 
     with open(os.path.join(artifacts_dir, "tfidf.pkl"), "rb") as f:
         vec, matrix = pickle.load(f)
 
-    # ── stream candidates + extract features ───────────────────────────
-    print("Loading candidates and extracting features...")
-    feats = []
-    for cand in stream_candidates(candidates_path):
-        feats.append(extract(cand))
-    print(f"  {len(feats)} candidates loaded in {time.time()-t0:.1f}s")
+    # ── load precomputed features ───────────────────────────────────────
+    print("Loading precomputed features...")
+    feats = _load_feature_artifacts(artifacts_dir)
+    print(f"  {len(feats)} feature rows loaded in {time.time()-t0:.1f}s")
     if not feats:
-        raise ValueError(f"No candidates found in {candidates_path}")
-    _validate_artifacts(artifacts_dir, ids, cand_embs, matrix, feats)
+        raise ValueError(f"No features found in {os.path.join(artifacts_dir, 'features.jsonl')}")
+
+    _validate_artifacts(
+        artifacts_dir,
+        ids,
+        cand_embs,
+        matrix,
+        feats,
+        candidate_file_sha256=_file_sha256(candidates_path),
+    )
 
     # ── compute component scores ───────────────────────────────────────
     t1 = time.time()

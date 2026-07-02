@@ -35,6 +35,12 @@ uv python install 3.11
 uv sync --extra sandbox --extra dev
 ```
 
+For optimized CPU embedding backends, also install the acceleration extra:
+
+```bash
+uv sync --extra sandbox --extra dev --extra cpu-accel
+```
+
 Run commands through `uv run` so they use `.venv`:
 
 ```bash
@@ -51,6 +57,9 @@ python -m pip install -r requirements.txt
 ```
 
 After activation, normal `python ...` commands use the project venv.
+
+`requirements.txt` includes the optional CPU acceleration stack. If you only
+need the minimal ranker, install from `pyproject.toml` with `uv` instead.
 
 ## How It Works
 
@@ -79,21 +88,67 @@ SentenceTransformer/CrossEncoder weights and may exceed the 5-minute ranking
 budget because it prepares reusable local artifacts, not the final constrained
 ranking run.
 
+Default PyTorch CPU backend:
+
 ```bash
 uv run python -m src.precompute \
   --candidates ../data/India_runs_data_and_ai_challenge/candidates.jsonl \
-  --artifacts ./artifacts
+  --artifacts ./artifacts \
+  --embed-batch-size 512 \
+  --feature-workers 16
 ```
 
-With an activated `.venv`, use `python -m src.precompute ...`.
+Fast CPU backend tested best on this machine: ONNX Runtime INT8 dynamic
+quantization. First run exports the ONNX model; later runs reuse it from
+`artifacts/models/`.
+
+```bash
+uv run --extra cpu-accel python -m src.precompute \
+  --candidates ../data/India_runs_data_and_ai_challenge/candidates.jsonl \
+  --artifacts ./artifacts \
+  --embed-backend onnx-int8 \
+  --onnx-quantization avx2 \
+  --embed-batch-size 256 \
+  --feature-workers 16
+```
+
+OpenVINO backends are also available for Intel CPU testing:
+
+```bash
+uv run --extra cpu-accel python -m src.precompute \
+  --candidates ../data/India_runs_data_and_ai_challenge/candidates.jsonl \
+  --artifacts ./artifacts \
+  --embed-backend openvino \
+  --embed-batch-size 256 \
+  --feature-workers 16
+```
+
+With an activated `.venv`, remove `uv run` from the commands above.
+
+Backend notes:
+
+- `torch`: default, safest CPU path, but candidate embedding can be slow.
+- `onnx-int8`: fastest backend measured on the sample run for candidate encoding (`1.9s` for 100 sample candidates vs `2.6s` for OpenVINO FP32). Uses dynamic INT8 quantization and no calibration dataset.
+- `openvino`: Intel CPU backend without INT8 calibration.
+- `openvino-int8`: static INT8 OpenVINO path. It can be fast on Intel CPUs but requires the `datasets` dependency because SentenceTransformers/Optimum uses a calibration dataset during export.
+
+Local CUDA/global Python path, if your global `python` has CUDA Torch and you
+are doing a local speed run rather than CPU-only reproduction:
+
+```bash
+python -m src.precompute --candidates ..\data\India_runs_data_and_ai_challenge\candidates.jsonl --artifacts .\artifacts
+python -m src.rank --candidates ..\data\India_runs_data_and_ai_challenge\candidates.jsonl --artifacts .\artifacts --out .\codexmohan_6487_global_cuda.csv
+```
 
 This step:
 
-- Extracts per-candidate features from profile, career, skills, education, and Redrob signals.
-- Encodes candidate text with `sentence-transformers/all-MiniLM-L6-v2`.
+- Loads candidates with `orjson`.
+- Extracts per-candidate features from profile, career, skills, education, and Redrob signals. Feature extraction can run in parallel via `--feature-workers`.
+- Encodes candidate text with `sentence-transformers/all-MiniLM-L6-v2` using the selected backend: PyTorch, ONNX INT8, OpenVINO, or OpenVINO INT8.
 - Builds a TF-IDF index over candidate text.
 - Saves the JD embedding, candidate embeddings, ordered candidate IDs, TF-IDF artifacts, feature JSONL, JD text, and `manifest.json`.
-- Saves both model directories under `artifacts/models/` so ranking can run offline.
+- Writes `features.jsonl` and `manifest.json` with `orjson`.
+- Saves model directories under `artifacts/models/` so ranking can run offline.
 
 `manifest.json` records the candidate count, candidate-file hash, and ordered
 candidate-ID hash. `rank.py` refuses to score if the current candidate file
@@ -118,8 +173,8 @@ With an activated `.venv`, use `python -m src.rank ...`.
 This step:
 
 - Loads precomputed embeddings, TF-IDF, ordered IDs, JD text, manifest, and cached models.
-- Validates artifact/candidate alignment before scoring.
-- Extracts current candidate features from `candidates.jsonl`.
+- Validates artifact/candidate alignment before scoring, including the candidate file SHA256.
+- Loads precomputed `features.jsonl` instead of re-extracting features at rank time.
 - Applies honeypot and JD hard-disqualifier gates.
 - Computes semantic, lexical, skill-evidence, career-fit, experience, location, and behavioral scores.
 - Re-ranks the top 1,000 gate-passed candidates with the cached cross-encoder.
