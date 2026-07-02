@@ -90,7 +90,7 @@ Precompute is the first-time setup step. It may use network to download local
 SentenceTransformer/CrossEncoder weights and is **not** bound by the 5-minute
 ranking budget. On CPU, candidate embedding can take roughly **25-40 minutes**
 for the full 100K dataset depending on backend, batch size, and CPU. On a local
-GPU-capable global Python install it typically completes in seconds.
+GPU-capable global Python install it typically completes in roughly **2-3 minutes** for 100K candidates.
 This is allowed by the competition spec: only the later `src.rank` step must
 finish within the 5-minute CPU/no-network budget.
 
@@ -140,7 +140,7 @@ Backend notes:
 
 Local CUDA/global Python path, if your global `python` has CUDA Torch and you
 want to build artifacts quickly. Do **not** use `uv` for this path if the `uv`
-environment is CPU-only. Precompute on CUDA usually takes seconds, not minutes.
+environment is CPU-only. Precompute on CUDA typically completes in roughly **2-3 minutes** for 100K candidates.
 
 ```bash
 python -m src.precompute --candidates ..\data\India_runs_data_and_ai_challenge\candidates.jsonl --artifacts .\artifacts --embed-batch-size 512 --feature-workers 16

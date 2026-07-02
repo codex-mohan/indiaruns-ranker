@@ -25,7 +25,7 @@ compute:
   uses_gpu_for_inference: false
   has_network_during_ranking: false
   pre_computation_required: true
-  pre_computation_time_minutes: 5
+  pre_computation_time_minutes: 30
 
 ai_tools_used:
   - "opencode"
@@ -50,7 +50,7 @@ methodology_summary: |
   is intentionally not scored. A honeypot gate filters impossible profiles.
   Reasoning is generated from real candidate fields only with three tone tiers
   (assertive / trade-off-aware / hesitant). Runtime ~4 min on CPU
-  for 100K candidates; local GPU precompute usually completes in seconds.
+  for 100K candidates; local GPU precompute takes roughly 2-3 minutes on an RTX 4050 Laptop.
 
 declarations:
   read_submission_spec: true
