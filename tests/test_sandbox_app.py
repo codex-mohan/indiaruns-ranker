@@ -35,3 +35,9 @@ def test_launch_app_does_not_pass_theme_or_css_to_launch(monkeypatch):
         "server_name": "0.0.0.0",
         "server_port": 7860,
     }
+
+
+def test_gradio_api_info_schema_builds():
+    info = sandbox_app.app.get_api_info()
+
+    assert "named_endpoints" in info
