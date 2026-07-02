@@ -63,7 +63,10 @@ need the minimal ranker, install from `pyproject.toml` with `uv` instead.
 
 ## How It Works
 
-The system is a two-phase hybrid ranker. Model download/precompute are setup steps; only `src.rank` is the constrained no-network ranking step.
+The system is a two-phase hybrid ranker. `src.precompute` builds reusable local
+artifacts; `src.rank` is the constrained no-network ranking step. `rank` now
+loads the cached `features.jsonl` produced by `precompute`, so it no longer
+re-extracts features from the candidate file.
 
 ### Optional Setup: Download Model Weights
 
@@ -137,10 +140,15 @@ Backend notes:
 
 Local CUDA/global Python path, if your global `python` has CUDA Torch and you
 want to build artifacts quickly. Do **not** use `uv` for this path if the `uv`
-environment is CPU-only.
+environment is CPU-only. Precompute on CUDA usually takes seconds, not minutes.
 
 ```bash
 python -m src.precompute --candidates ..\data\India_runs_data_and_ai_challenge\candidates.jsonl --artifacts .\artifacts --embed-batch-size 512 --feature-workers 16
+```
+
+Then CPU-only rank:
+
+```bash
 python -m src.rank --candidates ..\data\India_runs_data_and_ai_challenge\candidates.jsonl --artifacts .\artifacts --out .\codexmohan_6487_global_cuda.csv
 ```
 
